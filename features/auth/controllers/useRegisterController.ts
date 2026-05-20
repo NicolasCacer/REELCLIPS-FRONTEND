@@ -5,12 +5,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerService } from "../services/auth.service";
-import type { RegisterRequest } from "../model/auth.types";
 
 export function useRegisterController() {
   const router = useRouter();
 
-  const [form, setForm] = useState<RegisterRequest>({
+  const [form, setForm] = useState({
     name: "",
     username: "",
     email: "",
@@ -21,7 +20,7 @@ export function useRegisterController() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (field: keyof RegisterRequest, value: string) => {
+  const handleChange = (field: string, value: string) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
@@ -30,6 +29,7 @@ export function useRegisterController() {
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     setError("");
 
     if (
@@ -51,14 +51,28 @@ export function useRegisterController() {
     try {
       setIsLoading(true);
 
-      const response = await registerService(form);
+      // SOLO enviar lo que el backend necesita
+      const usuario = await registerService({
+        username: form.username,
+        email: form.email,
+        password: form.password,
+      });
 
-      localStorage.setItem("reelclips_token", response.token);
-      localStorage.setItem("reelclips_user", JSON.stringify(response.user));
+      localStorage.setItem(
+        "reelclips_user",
+        JSON.stringify(usuario)
+      );
+
+      localStorage.setItem(
+        "reelclips_user_id",
+        String(usuario.id)
+      );
 
       router.push("/home");
     } catch {
-      setError("No se pudo crear la cuenta. Intenta nuevamente.");
+      setError(
+        "No se pudo crear la cuenta. El correo o username podrían ya existir."
+      );
     } finally {
       setIsLoading(false);
     }

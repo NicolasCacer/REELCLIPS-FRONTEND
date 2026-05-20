@@ -1,31 +1,36 @@
 // features/auth/model/auth.types.ts
 
+import type { UsuarioInfo } from "@/shared/types/api.types";
+
+// Requests
 export type LoginRequest = {
   email: string;
   password: string;
 };
 
 export type RegisterRequest = {
-  name: string;
   username: string;
   email: string;
   password: string;
-  confirmPassword: string;
 };
 
-export type AuthUser = {
-  id: string;
-  name: string;
-  username?: string;
-  email: string;
+export type UpdateProfileRequest = {
+  nombre: string;
+  foto: string;
+  descripcion: string;
 };
 
-export type LoginResponse = {
-  user: AuthUser;
-  token: string;
+export type ChangeUsernameRequest = {
+  nuevoUsername: string;
 };
 
-export type RegisterResponse = {
-  user: AuthUser;
-  token: string;
-};
+// Responses
+export type AuthResponse = UsuarioInfo;
+
+export type LoginResponse = UsuarioInfo;
+
+export type RegisterResponse = UsuarioInfo;
+
+export type UpdateProfileResponse = UsuarioInfo;
+
+export type ChangeUsernameResponse = UsuarioInfo;

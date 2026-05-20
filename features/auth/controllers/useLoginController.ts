@@ -37,14 +37,14 @@ export function useLoginController() {
     try {
       setIsLoading(true);
 
-      const response = await loginService(form);
+      const usuario = await loginService(form);
 
-      localStorage.setItem("reelclips_token", response.token);
-      localStorage.setItem("reelclips_user", JSON.stringify(response.user));
+      localStorage.setItem("reelclips_user", JSON.stringify(usuario));
+      localStorage.setItem("reelclips_user_id", String(usuario.id));
 
       router.push("/home");
     } catch {
-      setError("No se pudo iniciar sesión. Intenta nuevamente.");
+      setError("Correo o contraseña incorrectos.");
     } finally {
       setIsLoading(false);
     }
