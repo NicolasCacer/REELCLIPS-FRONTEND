@@ -1,11 +1,15 @@
 // features/chats/controllers/useChatDetailController.ts
-
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Client } from "@stomp/stompjs";
 import { getConversationMessagesService } from "../services/chat.service";
+import {
+  createChatSocketClient,
+  publishChatMessage,
+} from "../services/chatSocket.service";
 import type { GetConversationMessagesRequest } from "../model/chat.types";
-import type { MensajeInfo } from "@/shared/types/api.types";
+import { MensajeInfo, TipoMensaje } from "@/shared/types/api.types";
 
 interface UseChatDetailControllerProps {
   conversacionId: number;
@@ -19,9 +23,9 @@ export function useChatDetailController({
   const [mensajes, setMensajes] = useState<MensajeInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  // GET: Cargar mensajes de la conversación
+  const clientRef = useRef<Client | null>(null);
+
   const loadMessages = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -29,7 +33,7 @@ export function useChatDetailController({
 
       const request: GetConversationMessagesRequest = {
         conversacionId,
-        usuarioId,
+        usuarioId: userId,
       };
 
       const messages = await getConversationMessagesService(request);
@@ -42,46 +46,67 @@ export function useChatDetailController({
     }
   }, [conversacionId, userId]);
 
-  // Simulación: POST para enviar mensaje
-  // Nota: El endpoint POST /api/chat/conversacion/{conversacionId}/mensaje no aparece en la spec
-  // pero sería necesario para una funcionalidad completa
   const handleSendMessage = useCallback(
     async (contenido: string) => {
-      try {
-        setError("");
-        setSuccess("");
+      const text = contenido.trim();
 
-        // Validar contenido
-        if (!contenido.trim()) {
-          setError("El mensaje no puede estar vacío.");
-          return;
-        }
-
-        // Aquí iría la llamada al servicio para enviar el mensaje
-        // const newMessage = await sendMessageService({ ... });
-        // setMensajes((prev) => [...prev, newMessage]);
-        // setSuccess("Mensaje enviado.");
-
-        console.log("Mensaje a enviar:", contenido);
-        // Por ahora solo logueamos, en una implementación real enviaremos al backend
-      } catch (err) {
-        setError("No se pudo enviar el mensaje.");
-        console.error(err);
+      if (!text) {
+        setError("El mensaje no puede estar vacío.");
+        return;
       }
+
+      const client = clientRef.current;
+
+      if (!client?.connected) {
+        setError("El chat aún no está conectado.");
+        return;
+      }
+
+      publishChatMessage(client, {
+        conversacionId,
+        remitenteId: userId,
+        contenido: text,
+        tipoContenido: TipoMensaje.TEXTO,
+        reelReferidoId: null,
+      });
     },
-    []
+    [conversacionId, userId]
   );
 
-  // Cargar mensajes al montar o cuando cambia la conversación
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
+
+  useEffect(() => {
+    const client = createChatSocketClient({
+      usuarioId: userId,
+      onMessage: (message) => {
+        if (message.conversacionId !== conversacionId) return;
+
+        setMensajes((prev) => {
+          const exists = prev.some((m) => m.id === message.id);
+          return exists ? prev : [...prev, message];
+        });
+      },
+      onError: (err) => {
+        console.error(err);
+        setError("Ocurrió un error en el chat.");
+      },
+    });
+
+    clientRef.current = client;
+    client.activate();
+
+    return () => {
+      client.deactivate();
+      clientRef.current = null;
+    };
+  }, [userId, conversacionId]);
 
   return {
     mensajes,
     isLoading,
     error,
-    success,
     loadMessages,
     handleSendMessage,
   };

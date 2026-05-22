@@ -1,17 +1,16 @@
 // features/chats/services/chat.service.ts
 
 import { apiClient, ApiClient } from "@/shared/services/api";
+import type { MessagePayload } from "../model/message.types";
+
 import type {
   CreateConversationRequest,
   CreateConversationResponse,
   GetConversationMessagesRequest,
   GetConversationMessagesResponse,
+  GetUserConversationsResponse,
 } from "../model/chat.types";
 
-/**
- * POST /api/chat/conversacion
- * Inicia una nueva conversación entre dos usuarios o reutiliza una existente
- */
 export async function createConversationService(
   data: CreateConversationRequest
 ): Promise<CreateConversationResponse> {
@@ -25,10 +24,6 @@ export async function createConversationService(
   );
 }
 
-/**
- * GET /api/chat/conversacion/{conversacionId}/mensajes
- * Retorna todos los mensajes de una conversación en orden cronológico
- */
 export async function getConversationMessagesService(
   data: GetConversationMessagesRequest
 ): Promise<GetConversationMessagesResponse> {
@@ -41,4 +36,24 @@ export async function getConversationMessagesService(
   );
 }
 
-export { ApiClient };
+/**
+ * Necesitas confirmar este endpoint en Swagger.
+ * Si no existe, el backend todavía NO permite listar chats reales.
+ */
+export async function getUserConversationsService(
+  usuarioId: number
+): Promise<GetUserConversationsResponse> {
+  const queryString = ApiClient.buildQueryString({ usuarioId });
+
+  return apiClient.get<GetUserConversationsResponse>(
+    `/chat/conversaciones${queryString}`
+  );
+}
+
+export async function getUserChatsService(
+  usuarioId: number
+): Promise<MessagePayload[]> {
+  return apiClient.get<MessagePayload[]>(
+    `/chat/conversaciones?usuarioId=${usuarioId}`
+  );
+}
