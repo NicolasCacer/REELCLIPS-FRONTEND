@@ -25,11 +25,25 @@ export type SendMessageRequest = {
   reelReferidoId?: number | null;
 };
 
+
+export type ConversationInfoResponse = {
+  id: number;
+  usuario1Id: number;
+  usuario2Id: number;
+  fechaInicio: string;
+};
+
 export type ChatPreview = {
+  id: number;
   conversacionId: number;
-  ultimoMensaje: string;
-  fechaUltimoMensaje: string;
-  remitenteId: number;
+
+  user: string;
+  photo?: string | null;
+
+  usuario1Id: number;
+  usuario2Id: number;
+
+  fechaInicio: string;
 };
 
 export type IncomingMessageResponse = MensajeInfo;

@@ -1,9 +1,17 @@
 // features/chats/controllers/useChatsController.ts
+
+"use client";
+
 import { useCallback, useEffect, useState } from "react";
 
-import { getUserChatsService } from "../services/chat.service";
+import { getUserConversationsService } from "../services/chat.service";
 
-import type { ChatPreview } from "../model/chat.types";
+import { getProfileService } from "@/features/profile/services/profile.service";
+
+import type {
+  ChatPreview,
+  ConversationInfoResponse,
+} from "../model/chat.types";
 
 interface UseChatsControllerProps {
   userId: number;
@@ -12,36 +20,119 @@ interface UseChatsControllerProps {
 export function useChatsController({
   userId,
 }: UseChatsControllerProps) {
-  const [conversations, setConversations] = useState<ChatPreview[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [conversations, setConversations] = useState<
+    ChatPreview[]
+  >([]);
 
-  const loadConversations = useCallback(async () => {
-    try {
-      setIsLoading(true);
+  const [isLoading, setIsLoading] =
+    useState(false);
 
-      const messages = await getUserChatsService(userId);
+  const [error, setError] = useState("");
 
-      /**
-       * Agrupar por conversación
-       */
-      const map = new Map<number, ChatPreview>();
+  const loadConversations = useCallback(
+    async () => {
+      try {
+        setIsLoading(true);
+        setError("");
 
-      messages.forEach((message) => {
-        map.set(message.conversacionId, {
-          conversacionId: message.conversacionId,
-          ultimoMensaje: message.contenido,
-          fechaUltimoMensaje: message.fechaEnvio,
-          remitenteId: message.remitenteId,
-        });
-      });
+        /**
+         * Conversaciones reales
+         */
+        const conversationsResponse =
+          await getUserConversationsService(
+            userId
+          );
 
-      setConversations(Array.from(map.values()));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId]);
+        /**
+         * Obtener perfiles
+         */
+        const formattedConversations =
+          await Promise.all(
+            conversationsResponse.map(
+              async (
+                conversation: ConversationInfoResponse
+              ): Promise<ChatPreview> => {
+                const otherUserId =
+                  conversation.usuario1Id ===
+                  userId
+                    ? conversation.usuario2Id
+                    : conversation.usuario1Id;
+
+                try {
+                  const profile =
+                    await getProfileService({
+                      id: otherUserId,
+                    });
+
+                  return {
+                    id: conversation.id,
+
+                    conversacionId:
+                      conversation.id,
+
+                    user:
+                      profile.nombreVisualizacion ||
+                      profile.username ||
+                      "Usuario",
+
+                    photo:
+                      profile.fotoPerfil ||
+                      null,
+
+                    usuario1Id:
+                      conversation.usuario1Id,
+
+                    usuario2Id:
+                      conversation.usuario2Id,
+
+                    fechaInicio:
+                      conversation.fechaInicio,
+                  };
+                } catch {
+                  /**
+                   * Fallback si falla perfil
+                   */
+                  return {
+                    id: conversation.id,
+
+                    conversacionId:
+                      conversation.id,
+
+                    user: "Usuario",
+
+                    photo: null,
+
+                    usuario1Id:
+                      conversation.usuario1Id,
+
+                    usuario2Id:
+                      conversation.usuario2Id,
+
+                    fechaInicio:
+                      conversation.fechaInicio,
+                  };
+                }
+              }
+            )
+          );
+
+        setConversations(
+          formattedConversations
+        );
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          "No se pudieron cargar las conversaciones."
+        );
+
+        setConversations([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [userId]
+  );
 
   useEffect(() => {
     loadConversations();
@@ -50,6 +141,7 @@ export function useChatsController({
   return {
     conversations,
     isLoading,
+    error,
     loadConversations,
   };
 }

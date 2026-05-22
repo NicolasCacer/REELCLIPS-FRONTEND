@@ -1,74 +1,30 @@
-// src/features/chats/views/ChatLayoutView.tsx
 "use client";
 
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
-import { useEffect, useState } from "react";
 
-import { getConversationMessagesService } from "../services/chat.service";
-
-import { getProfileService } from "@/features/profile/services/profile.service";
+import { useChatsController } from "../controllers/useChatsController";
 
 type ChatLayoutViewProps = {
   children: React.ReactNode;
 };
 
-type ChatPreview = {
-  id: string;
-  user: string;
-};
-
 export function ChatLayoutView({
   children,
 }: ChatLayoutViewProps) {
-  const [chats, setChats] = useState<ChatPreview[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  /**
+   * TEMPORAL:
+   * luego esto viene del auth store/session
+   */
+  const userId = 5;
 
-  useEffect(() => {
-    async function loadChats() {
-      try {
-        setIsLoading(true);
-
-        /**
-         * TEMPORAL:
-         * conversación fija
-         */
-        const messages =
-          await getConversationMessagesService({
-            conversacionId: 1,
-            usuarioId: 2,
-          });
-
-        if (messages.length === 0) return;
-
-        const lastMessage =
-          messages[messages.length - 1];
-
-        /**
-         * Obtener nombre real del usuario
-         */
-        const profile =
-          await getProfileService({
-            id: lastMessage.remitenteId,
-          });
-
-        setChats([
-          {
-            id: String(lastMessage.conversacionId),
-            user:
-              profile.nombreVisualizacion ||
-              profile.username,
-          },
-        ]);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadChats();
-  }, []);
+  const {
+    conversations,
+    isLoading,
+    error,
+  } = useChatsController({
+    userId,
+  });
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden rounded-[2rem] bg-white shadow-sm">
@@ -85,19 +41,35 @@ export function ChatLayoutView({
             </p>
           )}
 
+          {error && (
+            <p className="text-red-500">
+              {error}
+            </p>
+          )}
+
           {!isLoading &&
-            chats.map((chat) => (
+            conversations.map((chat) => (
               <Link
                 key={chat.id}
-                href={`/chats/${chat.id}`}
+                href={`/chats/${chat.conversacionId}`}
                 className="flex items-center gap-4 rounded-2xl border border-soft/60 bg-white p-4 transition hover:border-accent hover:bg-light/30"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white">
-                  <MessageCircle size={22} />
+                {/* Foto */}
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-primary text-white">
+                  {chat.photo ? (
+                    <img
+                      src={chat.photo}
+                      alt={chat.user}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <MessageCircle size={22} />
+                  )}
                 </div>
 
-                <div>
-                  <p className="font-bold text-primary">
+                {/* Nombre */}
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-primary">
                     {chat.user}
                   </p>
                 </div>

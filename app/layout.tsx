@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
+
 import "./globals.css";
+import { AuthProvider } from "@/features/auth/controllers/authContext";
+
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -10,7 +13,8 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "ReelClips",
-  description: "Plataforma de videos cortos e interacciones",
+  description:
+    "Plataforma de videos cortos e interacciones",
 };
 
 export default function RootLayout({
@@ -24,7 +28,9 @@ export default function RootLayout({
       className={`${poppins.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

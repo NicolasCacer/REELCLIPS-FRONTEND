@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { MessageCircle, Send } from "lucide-react";
 
 import { useChatDetailController } from "../controllers/useChatDetailController";
+import { getUserConversationsService } from "../services/chat.service";
+
 import { getProfileService } from "@/features/profile/services/profile.service";
 
 type Props = {
@@ -11,25 +13,50 @@ type Props = {
   userId: number;
 };
 
-export function ChatDetailView({ chatId, userId }: Props) {
+export function ChatDetailView({
+  chatId,
+  userId,
+}: Props) {
   const [message, setMessage] = useState("");
   const [chatName, setChatName] = useState("Chat");
   const [chatPhoto, setChatPhoto] = useState("");
 
-  const { mensajes, isLoading, error, handleSendMessage } =
-    useChatDetailController({
-      conversacionId: chatId,
-      userId,
-    });
+  const {
+    mensajes,
+    isLoading,
+    error,
+    handleSendMessage,
+  } = useChatDetailController({
+    conversacionId: chatId,
+    userId,
+  });
 
   useEffect(() => {
-    async function loadChatName() {
+    async function loadChatInfo() {
       try {
-        const otherUserId = 1;
+        const conversations =
+          await getUserConversationsService(userId);
 
-        const profile = await getProfileService({
-          id: otherUserId,
-        });
+        const conversation =
+          conversations.find(
+            (item) => item.id === chatId
+          );
+
+        if (!conversation) {
+          setChatName("Chat");
+          setChatPhoto("");
+          return;
+        }
+
+        const otherUserId =
+          conversation.usuario1Id === userId
+            ? conversation.usuario2Id
+            : conversation.usuario1Id;
+
+        const profile =
+          await getProfileService({
+            id: otherUserId,
+          });
 
         setChatName(
           profile.nombreVisualizacion ||
@@ -45,10 +72,12 @@ export function ChatDetailView({ chatId, userId }: Props) {
       }
     }
 
-    loadChatName();
-  }, [userId]);
+    loadChatInfo();
+  }, [chatId, userId]);
 
-  const onSubmit = async (event: FormEvent) => {
+  const onSubmit = async (
+    event: FormEvent
+  ) => {
     event.preventDefault();
 
     await handleSendMessage(message);
@@ -90,13 +119,16 @@ export function ChatDetailView({ chatId, userId }: Props) {
         )}
 
         {mensajes.map((msg) => {
-          const mine = msg.remitenteId === userId;
+          const mine =
+            msg.remitenteId === userId;
 
           return (
             <div
               key={msg.id}
               className={`flex ${
-                mine ? "justify-end" : "justify-start"
+                mine
+                  ? "justify-end"
+                  : "justify-start"
               }`}
             >
               <div
