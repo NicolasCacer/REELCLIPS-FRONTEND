@@ -26,7 +26,6 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // GET: Cargar feed paginado con filtros
   const loadFeed = useCallback(
     async (page: number = 0, categoriesFilter?: string[]) => {
       try {
@@ -34,7 +33,7 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
         setError("");
 
         const request: GetFeedRequest = {
-          usuarioId,
+          usuarioId: userId,
           categorias: categoriesFilter || selectedCategories,
           pagina: page,
         };
@@ -60,7 +59,6 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
     [userId, selectedCategories]
   );
 
-  // GET: Cargar todas las categorías
   const loadCategories = useCallback(async () => {
     try {
       const cats = await getAllCategoriesService();
@@ -70,7 +68,6 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
     }
   }, []);
 
-  // GET: Obtener categoría específica
   const loadCategoryDetails = useCallback(async (categoryId: number) => {
     try {
       const category = await getCategoryService(categoryId);
@@ -81,7 +78,6 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
     }
   }, []);
 
-  // GET: Filtrar categorías por nombre
   const handleFilterCategories = useCallback(
     async (categoryNames: string[]) => {
       try {
@@ -91,7 +87,6 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
         const filteredCategories = await filterCategoriesService(categoryNames);
         setCategories(filteredCategories);
 
-        // Recargar feed con categorías filtradas
         setCurrentPage(0);
         await loadFeed(0, categoryNames);
       } catch (err) {
@@ -104,34 +99,29 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
     [loadFeed]
   );
 
-  // Cambiar categorías seleccionadas
   const handleSelectCategory = (categoryName: string, isSelected: boolean) => {
     setSelectedCategories((prev) => {
       const updated = isSelected
         ? [...prev, categoryName]
         : prev.filter((c) => c !== categoryName);
 
-      // Recargar feed con nuevas categorías
       loadFeed(0, updated);
       return updated;
     });
   };
 
-  // Cargar siguiente página
   const loadNextPage = useCallback(async () => {
     if (hasMore && !isLoading) {
       await loadFeed(currentPage + 1, selectedCategories);
     }
   }, [currentPage, hasMore, isLoading, selectedCategories, loadFeed]);
 
-  // Recargar feed desde el principio
   const refreshFeed = useCallback(async () => {
     setCurrentPage(0);
     setSelectedCategories([]);
     await loadFeed(0, []);
   }, [loadFeed]);
 
-  // Cargar categorías al montar
   useEffect(() => {
     loadCategories();
     loadFeed(0, []);
