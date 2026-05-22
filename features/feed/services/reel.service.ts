@@ -61,13 +61,14 @@ export async function updateReelService(
   reelId: number,
   data: UpdateReelRequest
 ): Promise<UpdateReelResponse> {
-  const queryString = ApiClient.buildQueryString({
-    usuarioId: data.usuarioId,
-    descripcion: data.descripcion,
-    categoriaIds: data.categoriaIds,
-  });
-
-  return apiClient.put<UpdateReelResponse>(`/reels/${reelId}${queryString}`);
+  return apiClient.putUrlEncoded<UpdateReelResponse>(
+    `/reels/${reelId}`,
+    {
+      usuarioId: data.usuarioId,
+      descripcion: data.descripcion,
+      categoriaIds: data.categoriaIds,
+    }
+  );
 }
 
 /**
@@ -78,11 +79,10 @@ export async function deleteReelService(
   reelId: number,
   usuarioId: number
 ): Promise<void> {
-  const queryString = ApiClient.buildQueryString({
-    usuarioId,
-  });
-
-  return apiClient.delete<void>(`/reels/${reelId}${queryString}`);
+  return apiClient.deleteUrlEncoded<void>(
+    `/reels/${reelId}`,
+    { usuarioId }
+  );
 }
 
 /**

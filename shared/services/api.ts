@@ -65,6 +65,46 @@ export class ApiClient {
     return response.json();
   }
 
+  private async requestUrlEncoded<T>(
+    endpoint: string,
+    params: Record<string, any>,
+    method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST"
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const body = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value)) {
+          value.forEach((item) => body.append(key, item));
+        } else {
+          body.append(key, String(value));
+        }
+      }
+    });
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `API Error: ${response.status} ${response.statusText}`
+      );
+    }
+
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    return response.json();
+  }
+
   // GET request
   async get<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: "GET" });
@@ -76,6 +116,14 @@ export class ApiClient {
       method: "POST",
       body: data ? JSON.stringify(data) : undefined,
     });
+  }
+
+  // POST request con form-urlencoded
+  async postUrlEncoded<T>(
+    endpoint: string,
+    params: Record<string, any>
+  ): Promise<T> {
+    return this.requestUrlEncoded<T>(endpoint, params, "POST");
   }
 
   // POST request con FormData
@@ -91,9 +139,25 @@ export class ApiClient {
     });
   }
 
+  // PUT request con form-urlencoded
+  async putUrlEncoded<T>(
+    endpoint: string,
+    params: Record<string, any>
+  ): Promise<T> {
+    return this.requestUrlEncoded<T>(endpoint, params, "PUT");
+  }
+
   // PUT request con FormData
   async putFormData<T>(endpoint: string, formData: FormData): Promise<T> {
     return this.requestFormData<T>(endpoint, formData, "PUT");
+  }
+
+  // PATCH request con form-urlencoded
+  async patchUrlEncoded<T>(
+    endpoint: string,
+    params: Record<string, any>
+  ): Promise<T> {
+    return this.requestUrlEncoded<T>(endpoint, params, "PATCH");
   }
 
   // PATCH request
@@ -102,6 +166,14 @@ export class ApiClient {
       method: "PATCH",
       body: data ? JSON.stringify(data) : undefined,
     });
+  }
+
+  // DELETE request con form-urlencoded
+  async deleteUrlEncoded<T>(
+    endpoint: string,
+    params?: Record<string, any>
+  ): Promise<T> {
+    return this.requestUrlEncoded<T>(endpoint, params || {}, "DELETE");
   }
 
   // DELETE request

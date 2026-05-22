@@ -77,10 +77,11 @@ export type CategoriaInfo = {
 // Interacciones
 export type InteraccionInfo = {
   id: number;
-  tipo: TipoInteraccion;
+  tipo: string; // "LIKE" | "COMENTARIO"
   usuarioId: number;
   reelId: number;
   fecha: string; // ISO 8601 DateTime
+  contenido?: string; // Opcional, solo para comentarios
 };
 
 export type ComentarioDetalle = {

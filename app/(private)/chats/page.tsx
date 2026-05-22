@@ -1,29 +1,27 @@
-import Link from "next/link";
+// src/app/(private)/chats/page.tsx
+
+import { MessageCircle } from "lucide-react";
+
+import { ChatLayoutView } from "@/features/chats/views/ChatLayoutView";
 
 export default function ChatsPage() {
-  const chats = [
-    { id: "1", user: "Jorge" },
-    { id: "2", user: "Nicolas" },
-    { id: "3", user: "Daniel" },
-  ];
-
   return (
-    <main className="flex flex-col gap-6">
-      <h1 className="text-4xl font-bold text-black">
-        Chats
-      </h1>
+    <ChatLayoutView>
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-light text-primary">
+            <MessageCircle size={36} />
+          </div>
 
-      <div className="flex flex-col gap-3">
-        {chats.map((chat) => (
-          <Link
-            key={chat.id}
-            href={`/chats/${chat.id}`}
-            className="rounded-xl border border-zinc-300 bg-white p-4 text-black shadow-sm transition hover:bg-zinc-100"
-          >
-            Chat con {chat.user}
-          </Link>
-        ))}
+          <h2 className="text-2xl font-bold text-primary">
+            Selecciona un chat
+          </h2>
+
+          <p className="mt-2 text-secondary">
+            Escoge una conversación para comenzar.
+          </p>
+        </div>
       </div>
-    </main>
+    </ChatLayoutView>
   );
 }

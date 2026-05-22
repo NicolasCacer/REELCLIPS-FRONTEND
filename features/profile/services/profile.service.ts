@@ -30,14 +30,13 @@ export async function getProfileService(
 export async function updateProfileService(
   data: UpdateProfileRequest
 ): Promise<UpdateProfileResponse> {
-  const queryString = ApiClient.buildQueryString({
-    nombre: data.nombre,
-    foto: data.foto,
-    descripcion: data.descripcion,
-  });
-
-  return apiClient.put<UpdateProfileResponse>(
-    `/usuarios/${data.id}/perfil${queryString}`
+  return apiClient.putUrlEncoded<UpdateProfileResponse>(
+    `/usuarios/${data.id}/perfil`,
+    {
+      nombre: data.nombre,
+      foto: data.foto,
+      descripcion: data.descripcion,
+    }
   );
 }
 
@@ -64,12 +63,11 @@ export async function uploadProfilePhotoService(
 export async function changeUsernameService(
   data: ChangeUsernameRequest
 ): Promise<ChangeUsernameResponse> {
-  const queryString = ApiClient.buildQueryString({
-    nuevoUsername: data.nuevoUsername,
-  });
-
-  return apiClient.patch<ChangeUsernameResponse>(
-    `/usuarios/${data.id}/username${queryString}`
+  return apiClient.patchUrlEncoded<ChangeUsernameResponse>(
+    `/usuarios/${data.id}/username`,
+    {
+      nuevoUsername: data.nuevoUsername,
+    }
   );
 }
 

@@ -66,12 +66,13 @@ export async function createCategoryService(
   nombre: string,
   descripcion: string
 ): Promise<CategoriaInfo> {
-  const queryString = ApiClient.buildQueryString({
-    nombre,
-    descripcion,
-  });
-
-  return apiClient.post<CategoriaInfo>(`/categorias${queryString}`);
+  return apiClient.postUrlEncoded<CategoriaInfo>(
+    "/categorias",
+    {
+      nombre,
+      descripcion,
+    }
+  );
 }
 
 /**
@@ -83,13 +84,12 @@ export async function updateCategoryService(
   nombre: string,
   descripcion: string
 ): Promise<CategoriaInfo> {
-  const queryString = ApiClient.buildQueryString({
-    nombre,
-    descripcion,
-  });
-
-  return apiClient.put<CategoriaInfo>(
-    `/categorias/${categoryId}${queryString}`
+  return apiClient.putUrlEncoded<CategoriaInfo>(
+    `/categorias/${categoryId}`,
+    {
+      nombre,
+      descripcion,
+    }
   );
 }
 

@@ -18,12 +18,10 @@ import type { PerfilInfo, UsuarioInfo } from "@/shared/types/api.types";
  * Autentica al usuario con sus credenciales
  */
 export async function loginService(data: LoginRequest): Promise<LoginResponse> {
-  const queryString = ApiClient.buildQueryString({
+  return apiClient.postUrlEncoded<LoginResponse>("/usuarios/login", {
     email: data.email,
     password: data.password,
   });
-
-  return apiClient.post<LoginResponse>(`/usuarios/login${queryString}`);
 }
 
 /**
@@ -33,13 +31,11 @@ export async function loginService(data: LoginRequest): Promise<LoginResponse> {
 export async function registerService(
   data: RegisterRequest
 ): Promise<RegisterResponse> {
-  const queryString = ApiClient.buildQueryString({
+  return apiClient.postUrlEncoded<RegisterResponse>("/usuarios/registro", {
     username: data.username,
     email: data.email,
     password: data.password,
   });
-
-  return apiClient.post<RegisterResponse>(`/usuarios/registro${queryString}`);
 }
 
 /**
@@ -60,14 +56,13 @@ export async function updateProfileService(
   userId: number,
   data: UpdateProfileRequest
 ): Promise<UpdateProfileResponse> {
-  const queryString = ApiClient.buildQueryString({
-    nombre: data.nombre,
-    foto: data.foto,
-    descripcion: data.descripcion,
-  });
-
-  return apiClient.put<UpdateProfileResponse>(
-    `/usuarios/${userId}/perfil${queryString}`
+  return apiClient.putUrlEncoded<UpdateProfileResponse>(
+    `/usuarios/${userId}/perfil`,
+    {
+      nombre: data.nombre,
+      foto: data.foto,
+      descripcion: data.descripcion,
+    }
   );
 }
 
@@ -96,12 +91,11 @@ export async function changeUsernameService(
   userId: number,
   data: ChangeUsernameRequest
 ): Promise<ChangeUsernameResponse> {
-  const queryString = ApiClient.buildQueryString({
-    nuevoUsername: data.nuevoUsername,
-  });
-
-  return apiClient.patch<ChangeUsernameResponse>(
-    `/usuarios/${userId}/username${queryString}`
+  return apiClient.patchUrlEncoded<ChangeUsernameResponse>(
+    `/usuarios/${userId}/username`,
+    {
+      nuevoUsername: data.nuevoUsername,
+    }
   );
 }
 

@@ -19,13 +19,12 @@ import type {
 export async function addLikeService(
   data: AddLikeRequest
 ): Promise<AddLikeResponse> {
-  const queryString = ApiClient.buildQueryString({
-    usuarioId: data.usuarioId,
-    reelId: data.reelId,
-  });
-
-  return apiClient.post<AddLikeResponse>(
-    `/interacciones/like${queryString}`
+  return apiClient.postUrlEncoded<AddLikeResponse>(
+    "/interacciones/like",
+    {
+      usuarioId: data.usuarioId,
+      reelId: data.reelId,
+    }
   );
 }
 
@@ -36,12 +35,13 @@ export async function addLikeService(
 export async function removeLikeService(
   data: RemoveLikeRequest
 ): Promise<void> {
-  const queryString = ApiClient.buildQueryString({
-    usuarioId: data.usuarioId,
-    reelId: data.reelId,
-  });
-
-  return apiClient.delete<void>(`/interacciones/like${queryString}`);
+  return apiClient.deleteUrlEncoded<void>(
+    "/interacciones/like",
+    {
+      usuarioId: data.usuarioId,
+      reelId: data.reelId,
+    }
+  );
 }
 
 /**
@@ -51,14 +51,13 @@ export async function removeLikeService(
 export async function addCommentService(
   data: AddCommentRequest
 ): Promise<AddCommentResponse> {
-  const queryString = ApiClient.buildQueryString({
-    usuarioId: data.usuarioId,
-    reelId: data.reelId,
-    contenido: data.contenido,
-  });
-
-  return apiClient.post<AddCommentResponse>(
-    `/interacciones/comentario${queryString}`
+  return apiClient.postUrlEncoded<AddCommentResponse>(
+    "/interacciones/comentario",
+    {
+      usuarioId: data.usuarioId,
+      reelId: data.reelId,
+      contenido: data.contenido,
+    }
   );
 }
 
@@ -69,12 +68,11 @@ export async function addCommentService(
 export async function deleteCommentService(
   data: DeleteCommentRequest
 ): Promise<void> {
-  const queryString = ApiClient.buildQueryString({
-    usuarioId: data.usuarioId,
-  });
-
-  return apiClient.delete<void>(
-    `/interacciones/comentario/${data.comentarioId}${queryString}`
+  return apiClient.deleteUrlEncoded<void>(
+    `/interacciones/comentario/${data.comentarioId}`,
+    {
+      usuarioId: data.usuarioId,
+    }
   );
 }
 
