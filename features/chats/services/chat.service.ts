@@ -2,6 +2,8 @@
 
 import { apiClient, ApiClient } from "@/shared/services/api";
 
+import type { PerfilInfo } from "@/shared/types/api.types";
+
 import type {
   CreateConversationRequest,
   CreateConversationResponse,
@@ -17,13 +19,12 @@ import type {
 export async function createConversationService(
   data: CreateConversationRequest
 ): Promise<CreateConversationResponse> {
-  const queryString = ApiClient.buildQueryString({
-    usuarioId: data.usuarioId,
-    destinatarioId: data.destinatarioId,
-  });
-
-  return apiClient.post<CreateConversationResponse>(
-    `/chat/conversacion${queryString}`
+  return apiClient.postUrlEncoded<CreateConversationResponse>(
+    `/chat/conversacion`,
+    {
+      usuarioId: data.usuarioId,
+      destinatarioId: data.destinatarioId,
+    }
   );
 }
 
@@ -56,6 +57,22 @@ export async function getUserConversationsService(
 
   return apiClient.get<GetUserConversationsResponse>(
     `/chat/conversaciones${queryString}`
+  );
+}
+
+/**
+ * GET /api/usuarios/perfiles-publicos?usuarioId={usuarioId}
+ * Retorna usuarios activos excluyendo al usuario que consulta
+ */
+export async function getPublicProfilesService(
+  usuarioId: number
+): Promise<PerfilInfo[]> {
+  const queryString = ApiClient.buildQueryString({
+    usuarioId,
+  });
+
+  return apiClient.get<PerfilInfo[]>(
+    `/usuarios/perfiles-publicos${queryString}`
   );
 }
 

@@ -3,7 +3,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getUserConversationsService } from "../services/chat.service";
+
+import {
+  createConversationService,
+  getPublicProfilesService,
+  getUserConversationsService,
+} from "../services/chat.service";
+
 import { getProfileService } from "@/features/profile/services/profile.service";
 
 import type {
@@ -11,14 +17,21 @@ import type {
   ConversationInfoResponse,
 } from "../model/chat.types";
 
+import type { PerfilInfo } from "@/shared/types/api.types";
+
 interface UseChatsControllerProps {
   userId?: number | null;
 }
 
 export function useChatsController({ userId }: UseChatsControllerProps) {
   const [conversations, setConversations] = useState<ChatPreview[]>([]);
+  const [contacts, setContacts] = useState<PerfilInfo[]>([]);
+
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+
   const [error, setError] = useState("");
+  const [contactsError, setContactsError] = useState("");
 
   const loadConversations = useCallback(async () => {
     if (!userId) return;
@@ -27,12 +40,13 @@ export function useChatsController({ userId }: UseChatsControllerProps) {
       setIsLoading(true);
       setError("");
 
-      const conversationsResponse =
-        await getUserConversationsService(userId);
+      const conversationsResponse = await getUserConversationsService(userId);
 
       const formattedConversations = await Promise.all(
         conversationsResponse.map(
-          async (conversation: ConversationInfoResponse): Promise<ChatPreview> => {
+          async (
+            conversation: ConversationInfoResponse
+          ): Promise<ChatPreview> => {
             const otherUserId =
               conversation.usuario1Id === userId
                 ? conversation.usuario2Id
@@ -80,14 +94,68 @@ export function useChatsController({ userId }: UseChatsControllerProps) {
     }
   }, [userId]);
 
+  const loadContacts = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      setLoadingContacts(true);
+      setContactsError("");
+
+      const response = await getPublicProfilesService(userId);
+
+      setContacts(Array.isArray(response) ? response : []);
+    } catch (err) {
+      console.error(err);
+      setContactsError("No se pudieron cargar los contactos.");
+      setContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
+  }, [userId]);
+
+  const startConversation = useCallback(
+    async (destinatarioId: number) => {
+      if (!userId) return null;
+
+      try {
+        setError("");
+
+        const conversation = await createConversationService({
+          usuarioId: userId,
+          destinatarioId,
+        });
+
+        await loadConversations();
+
+        return conversation;
+      } catch (err) {
+        console.error(err);
+        setError("No se pudo iniciar la conversación.");
+        return null;
+      }
+    },
+    [userId, loadConversations]
+  );
+
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    if (!userId) return;
+
+    void loadConversations();
+    void loadContacts();
+  }, [userId, loadConversations, loadContacts]);
 
   return {
     conversations,
+    contacts,
+
     isLoading,
+    loadingContacts,
+
     error,
+    contactsError,
+
     loadConversations,
+    loadContacts,
+    startConversation,
   };
 }

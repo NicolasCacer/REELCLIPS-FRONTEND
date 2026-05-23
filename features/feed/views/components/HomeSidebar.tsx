@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Home, MessageCircle, Plus } from "lucide-react";
 
 import { Avatar } from "./Avatar";
+import { useChatsController } from "@/features/chats/controllers/useChatsController";
 import type { HomeContacto } from "@/features/feed/controllers/useHomeFeed";
 import type { UsuarioInfo } from "@/shared/types/api.types";
 
@@ -14,25 +15,39 @@ type HomeSidebarProps = {
   active?: "home" | "chats" | "profile";
 };
 
-// Contactos de marcador de posición (el backend de contactos no está expuesto).
 const CONTACTOS_DEMO: HomeContacto[] = [
   { id: 1, nombre: "Pepito Peréz", fotoPerfil: null },
   { id: 2, nombre: "Pepito Peréz", fotoPerfil: null },
 ];
 
-export function HomeSidebar({ usuario, contactos, active = "home" }: HomeSidebarProps) {
+export function HomeSidebar({
+  usuario,
+  contactos,
+  active = "home",
+}: HomeSidebarProps) {
   const nombre = usuario?.nombreVisualizacion || usuario?.username || "Jorge";
-  const handle = usuario?.username ? `@${usuario.username}` : "@jjal";
-  const lista = contactos ?? CONTACTOS_DEMO;
+  const handle = usuario?.username
+    ? usuario.username.startsWith("@")
+      ? usuario.username
+      : `@${usuario.username}`
+    : "@jjal";
+
+  const { conversations, isLoading } = useChatsController({
+    userId: usuario?.id,
+  });
+
+  const recientes = conversations.slice(0, 5);
+  const listaDemo = contactos ?? CONTACTOS_DEMO;
 
   const navBase =
     "flex items-center gap-3 rounded-2xl border-2 px-4 py-3 font-semibold transition-colors";
   const navActivo = "border-primary bg-primary text-white";
-  const navInactivo = "border-soft/70 text-primary hover:border-accent hover:bg-light/30";
+  const navInactivo =
+    "border-soft/70 text-primary hover:border-accent hover:bg-light/30";
 
   return (
     <aside className="flex w-72 shrink-0 flex-col gap-8 border-r border-soft/40 bg-white px-6 py-7">
-      {/* Perfil (enlace a tu propio perfil) */}
+      {/* Perfil */}
       <Link
         href="/profile"
         className={[
@@ -42,7 +57,9 @@ export function HomeSidebar({ usuario, contactos, active = "home" }: HomeSidebar
       >
         <Avatar nombre={nombre} src={usuario?.fotoPerfil} size={56} />
         <div className="min-w-0">
-          <p className="truncate text-xl font-bold leading-tight text-primary">{nombre}</p>
+          <p className="truncate text-xl font-bold leading-tight text-primary">
+            {nombre}
+          </p>
           <p className="truncate text-sm text-secondary">{handle}</p>
         </div>
       </Link>
@@ -52,7 +69,9 @@ export function HomeSidebar({ usuario, contactos, active = "home" }: HomeSidebar
         <Link
           href="/home"
           aria-current={active === "home" ? "page" : undefined}
-          className={[navBase, active === "home" ? navActivo : navInactivo].join(" ")}
+          className={[navBase, active === "home" ? navActivo : navInactivo].join(
+            " "
+          )}
         >
           <span
             className={[
@@ -68,7 +87,9 @@ export function HomeSidebar({ usuario, contactos, active = "home" }: HomeSidebar
         <Link
           href="/chats"
           aria-current={active === "chats" ? "page" : undefined}
-          className={[navBase, active === "chats" ? navActivo : navInactivo].join(" ")}
+          className={[navBase, active === "chats" ? navActivo : navInactivo].join(
+            " "
+          )}
         >
           <span
             className={[
@@ -82,25 +103,62 @@ export function HomeSidebar({ usuario, contactos, active = "home" }: HomeSidebar
         </Link>
       </nav>
 
-      {/* Contactos */}
+      {/* Contactos recientes */}
       <div className="flex min-h-0 flex-1 flex-col">
-        <h2 className="mb-3 text-base font-bold text-primary">Mis Contactos</h2>
+        <h2 className="mb-3 text-base font-bold text-primary">
+          Contactos recientes
+        </h2>
+
         <ul className="flex flex-col gap-1 overflow-y-auto pr-1">
-          {lista.map((c, i) => (
-            <li key={`${c.id}-${i}`}>
-              <button
-                type="button"
+          {isLoading && recientes.length === 0 && (
+            <li className="px-2 py-2 text-sm text-secondary">
+              Cargando contactos...
+            </li>
+          )}
+
+          {!isLoading &&
+            recientes.length === 0 &&
+            listaDemo.map((c, i) => (
+              <li key={`${c.id}-${i}`}>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-light/30"
+                >
+                  <Avatar
+                    nombre={c.nombre}
+                    src={c.fotoPerfil}
+                    size={40}
+                    ring={false}
+                  />
+                  <span className="truncate text-sm font-medium text-secondary">
+                    {c.nombre}
+                  </span>
+                </button>
+              </li>
+            ))}
+
+          {recientes.map((chat) => (
+            <li key={chat.conversacionId}>
+              <Link
+                href={`/chats/${chat.conversacionId}`}
                 className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-light/30"
               >
-                <Avatar nombre={c.nombre} src={c.fotoPerfil} size={40} ring={false} />
-                <span className="truncate text-sm font-medium text-secondary">{c.nombre}</span>
-              </button>
+                <Avatar
+                  nombre={chat.user}
+                  src={chat.photo}
+                  size={40}
+                  ring={false}
+                />
+                <span className="truncate text-sm font-medium text-secondary">
+                  {chat.user}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>
       </div>
 
-      {/* Botón flotante para crear / publicar */}
+      {/* Botón publicar */}
       <Link
         href="/publish"
         aria-label="Crear publicación"

@@ -119,3 +119,4 @@ export type MensajeInfo = {
   reelReferidoId: number | null;
   fechaEnvio: string; // ISO 8601 DateTime
 };
+
