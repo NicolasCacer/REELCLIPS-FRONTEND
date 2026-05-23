@@ -3,20 +3,41 @@
 import { FormEvent, useEffect, useState } from "react";
 import { MessageCircle, Send } from "lucide-react";
 
+import { useAuth } from "@/features/auth/controllers/authContext";
 import { useChatDetailController } from "../controllers/useChatDetailController";
 import { getUserConversationsService } from "../services/chat.service";
-
 import { getProfileService } from "@/features/profile/services/profile.service";
 
 type Props = {
   chatId: number;
-  userId: number;
 };
 
-export function ChatDetailView({
+export function ChatDetailView({ chatId }: Props) {
+  const { user } = useAuth();
+
+  if (!user?.id) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-secondary">
+        Cargando usuario...
+      </div>
+    );
+  }
+
+  return (
+    <ChatDetailContent
+      chatId={chatId}
+      userId={user.id}
+    />
+  );
+}
+
+function ChatDetailContent({
   chatId,
   userId,
-}: Props) {
+}: {
+  chatId: number;
+  userId: number;
+}) {
   const [message, setMessage] = useState("");
   const [chatName, setChatName] = useState("Chat");
   const [chatPhoto, setChatPhoto] = useState("");
@@ -34,13 +55,15 @@ export function ChatDetailView({
   useEffect(() => {
     async function loadChatInfo() {
       try {
+        console.log("chatId:", chatId);
+        console.log("userId:", userId);
+
         const conversations =
           await getUserConversationsService(userId);
 
-        const conversation =
-          conversations.find(
-            (item) => item.id === chatId
-          );
+        const conversation = conversations.find(
+          (item) => item.id === chatId
+        );
 
         if (!conversation) {
           setChatName("Chat");
@@ -53,10 +76,9 @@ export function ChatDetailView({
             ? conversation.usuario2Id
             : conversation.usuario1Id;
 
-        const profile =
-          await getProfileService({
-            id: otherUserId,
-          });
+        const profile = await getProfileService({
+          id: otherUserId,
+        });
 
         setChatName(
           profile.nombreVisualizacion ||
@@ -75,13 +97,10 @@ export function ChatDetailView({
     loadChatInfo();
   }, [chatId, userId]);
 
-  const onSubmit = async (
-    event: FormEvent
-  ) => {
+  const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
     await handleSendMessage(message);
-
     setMessage("");
   };
 
@@ -112,23 +131,16 @@ export function ChatDetailView({
           </p>
         )}
 
-        {error && (
-          <p className="text-red-500">
-            {error}
-          </p>
-        )}
+        {error && <p className="text-red-500">{error}</p>}
 
         {mensajes.map((msg) => {
-          const mine =
-            msg.remitenteId === userId;
+          const mine = msg.remitenteId === userId;
 
           return (
             <div
               key={msg.id}
               className={`flex ${
-                mine
-                  ? "justify-end"
-                  : "justify-start"
+                mine ? "justify-end" : "justify-start"
               }`}
             >
               <div

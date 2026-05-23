@@ -3,9 +3,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-
 import { getUserConversationsService } from "../services/chat.service";
-
 import { getProfileService } from "@/features/profile/services/profile.service";
 
 import type {
@@ -14,125 +12,73 @@ import type {
 } from "../model/chat.types";
 
 interface UseChatsControllerProps {
-  userId: number;
+  userId?: number | null;
 }
 
-export function useChatsController({
-  userId,
-}: UseChatsControllerProps) {
-  const [conversations, setConversations] = useState<
-    ChatPreview[]
-  >([]);
-
-  const [isLoading, setIsLoading] =
-    useState(false);
-
+export function useChatsController({ userId }: UseChatsControllerProps) {
+  const [conversations, setConversations] = useState<ChatPreview[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadConversations = useCallback(
-    async () => {
-      try {
-        setIsLoading(true);
-        setError("");
+  const loadConversations = useCallback(async () => {
+    if (!userId) return;
 
-        /**
-         * Conversaciones reales
-         */
-        const conversationsResponse =
-          await getUserConversationsService(
-            userId
-          );
+    try {
+      setIsLoading(true);
+      setError("");
 
-        /**
-         * Obtener perfiles
-         */
-        const formattedConversations =
-          await Promise.all(
-            conversationsResponse.map(
-              async (
-                conversation: ConversationInfoResponse
-              ): Promise<ChatPreview> => {
-                const otherUserId =
-                  conversation.usuario1Id ===
-                  userId
-                    ? conversation.usuario2Id
-                    : conversation.usuario1Id;
+      const conversationsResponse =
+        await getUserConversationsService(userId);
 
-                try {
-                  const profile =
-                    await getProfileService({
-                      id: otherUserId,
-                    });
+      const formattedConversations = await Promise.all(
+        conversationsResponse.map(
+          async (conversation: ConversationInfoResponse): Promise<ChatPreview> => {
+            const otherUserId =
+              conversation.usuario1Id === userId
+                ? conversation.usuario2Id
+                : conversation.usuario1Id;
 
-                  return {
-                    id: conversation.id,
+            try {
+              const profile = await getProfileService({
+                id: otherUserId,
+              });
 
-                    conversacionId:
-                      conversation.id,
+              return {
+                id: conversation.id,
+                conversacionId: conversation.id,
+                user:
+                  profile.nombreVisualizacion ||
+                  profile.username ||
+                  "Usuario",
+                photo: profile.fotoPerfil || null,
+                usuario1Id: conversation.usuario1Id,
+                usuario2Id: conversation.usuario2Id,
+                fechaInicio: conversation.fechaInicio,
+              };
+            } catch {
+              return {
+                id: conversation.id,
+                conversacionId: conversation.id,
+                user: "Usuario",
+                photo: null,
+                usuario1Id: conversation.usuario1Id,
+                usuario2Id: conversation.usuario2Id,
+                fechaInicio: conversation.fechaInicio,
+              };
+            }
+          }
+        )
+      );
 
-                    user:
-                      profile.nombreVisualizacion ||
-                      profile.username ||
-                      "Usuario",
-
-                    photo:
-                      profile.fotoPerfil ||
-                      null,
-
-                    usuario1Id:
-                      conversation.usuario1Id,
-
-                    usuario2Id:
-                      conversation.usuario2Id,
-
-                    fechaInicio:
-                      conversation.fechaInicio,
-                  };
-                } catch {
-                  /**
-                   * Fallback si falla perfil
-                   */
-                  return {
-                    id: conversation.id,
-
-                    conversacionId:
-                      conversation.id,
-
-                    user: "Usuario",
-
-                    photo: null,
-
-                    usuario1Id:
-                      conversation.usuario1Id,
-
-                    usuario2Id:
-                      conversation.usuario2Id,
-
-                    fechaInicio:
-                      conversation.fechaInicio,
-                  };
-                }
-              }
-            )
-          );
-
-        setConversations(
-          formattedConversations
-        );
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          "No se pudieron cargar las conversaciones."
-        );
-
-        setConversations([]);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [userId]
-  );
+      setConversations(formattedConversations);
+    } catch (err) {
+      console.error(err);
+      setError("No se pudieron cargar las conversaciones.");
+      setConversations([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
     loadConversations();

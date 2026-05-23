@@ -6,9 +6,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginService } from "../services/auth.service";
 import type { LoginRequest } from "../model/auth.types";
+import { useAuth } from "./authContext";
 
 export function useLoginController() {
   const router = useRouter();
+  const { setUser } = useAuth();
 
   const [form, setForm] = useState<LoginRequest>({
     email: "",
@@ -39,9 +41,12 @@ export function useLoginController() {
 
       const usuario = await loginService(form);
 
-      localStorage.setItem("reelclips_user", JSON.stringify(usuario));
-      localStorage.setItem("reelclips_user_id", String(usuario.id));
-
+    setUser({
+      id: usuario.id,
+      username: usuario.username,
+      nombreVisualizacion: usuario.nombreVisualizacion ?? undefined,
+      fotoPerfil: usuario.fotoPerfil ?? undefined,
+    });
       router.push("/home");
     } catch {
       setError("Correo o contraseña incorrectos.");

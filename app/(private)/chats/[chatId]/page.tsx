@@ -9,15 +9,16 @@ type ChatPageProps = {
   }>;
 };
 
-export default async function ChatPage({ params }: ChatPageProps) {
+export default async function ChatPage({
+  params,
+}: ChatPageProps) {
   const { chatId } = await params;
-
-  // Cámbialo por tu auth real.
-  const userId = 1;
 
   return (
     <ChatLayoutView>
-      <ChatDetailView chatId={Number(chatId)} userId={userId} />
+      <ChatDetailView
+        chatId={Number(chatId)}
+      />
     </ChatLayoutView>
   );
 }

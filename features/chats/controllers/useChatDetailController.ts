@@ -26,25 +26,27 @@ export function useChatDetailController({
 
   const clientRef = useRef<Client | null>(null);
 
-  const loadMessages = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError("");
+const loadMessages = useCallback(async () => {
+  if (!userId) return;
 
-      const request: GetConversationMessagesRequest = {
-        conversacionId,
-        usuarioId: userId,
-      };
+  try {
+    setIsLoading(true);
+    setError("");
 
-      const messages = await getConversationMessagesService(request);
-      setMensajes(messages);
-    } catch (err) {
-      setError("No se pudieron cargar los mensajes.");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [conversacionId, userId]);
+    const request: GetConversationMessagesRequest = {
+      conversacionId,
+      usuarioId: userId,
+    };
+
+    const messages = await getConversationMessagesService(request);
+    setMensajes(messages);
+  } catch (err) {
+    setError("No se pudieron cargar los mensajes.");
+    console.error(err);
+  } finally {
+    setIsLoading(false);
+  }
+}, [conversacionId, userId]);
 
   const handleSendMessage = useCallback(
     async (contenido: string) => {
@@ -77,31 +79,33 @@ export function useChatDetailController({
     loadMessages();
   }, [loadMessages]);
 
-  useEffect(() => {
-    const client = createChatSocketClient({
-      usuarioId: userId,
-      onMessage: (message) => {
-        if (message.conversacionId !== conversacionId) return;
+useEffect(() => {
+  if (!userId) return;
 
-        setMensajes((prev) => {
-          const exists = prev.some((m) => m.id === message.id);
-          return exists ? prev : [...prev, message];
-        });
-      },
-      onError: (err) => {
-        console.error(err);
-        setError("Ocurrió un error en el chat.");
-      },
-    });
+  const client = createChatSocketClient({
+    usuarioId: userId,
+    onMessage: (message) => {
+      if (message.conversacionId !== conversacionId) return;
 
-    clientRef.current = client;
-    client.activate();
+      setMensajes((prev) => {
+        const exists = prev.some((m) => m.id === message.id);
+        return exists ? prev : [...prev, message];
+      });
+    },
+    onError: (err) => {
+      console.error(err);
+      setError("Ocurrió un error en el chat.");
+    },
+  });
 
-    return () => {
-      client.deactivate();
-      clientRef.current = null;
-    };
-  }, [userId, conversacionId]);
+  clientRef.current = client;
+  client.activate();
+
+  return () => {
+    client.deactivate();
+    clientRef.current = null;
+  };
+}, [userId, conversacionId]);
 
   return {
     mensajes,

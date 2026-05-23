@@ -3,32 +3,36 @@
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 
+import { useAuth } from "@/features/auth/controllers/authContext";
 import { useChatsController } from "../controllers/useChatsController";
 
 type ChatLayoutViewProps = {
   children: React.ReactNode;
 };
 
-export function ChatLayoutView({
-  children,
-}: ChatLayoutViewProps) {
-  /**
-   * TEMPORAL:
-   * luego esto viene del auth store/session
-   */
-  const userId = 5;
+export function ChatLayoutView({ children }: ChatLayoutViewProps) {
+  const { user } = useAuth();
+
+  const userId = user?.id;
 
   const {
     conversations,
     isLoading,
     error,
   } = useChatsController({
-    userId,
+    userId: userId ?? 0,
   });
+
+  if (!userId) {
+    return (
+      <div className="flex h-full items-center justify-center text-secondary">
+        Cargando usuario...
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden rounded-[2rem] bg-white shadow-sm">
-      {/* Sidebar */}
       <aside className="w-96 shrink-0 border-r border-soft/40 bg-white p-6">
         <h1 className="mb-6 text-3xl font-bold text-primary">
           Chats
@@ -54,7 +58,6 @@ export function ChatLayoutView({
                 href={`/chats/${chat.conversacionId}`}
                 className="flex items-center gap-4 rounded-2xl border border-soft/60 bg-white p-4 transition hover:border-accent hover:bg-light/30"
               >
-                {/* Foto */}
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-primary text-white">
                   {chat.photo ? (
                     <img
@@ -67,7 +70,6 @@ export function ChatLayoutView({
                   )}
                 </div>
 
-                {/* Nombre */}
                 <div className="min-w-0">
                   <p className="truncate font-bold text-primary">
                     {chat.user}
@@ -78,7 +80,6 @@ export function ChatLayoutView({
         </div>
       </aside>
 
-      {/* Contenido */}
       <section className="flex min-w-0 flex-1 bg-background/40">
         {children}
       </section>
