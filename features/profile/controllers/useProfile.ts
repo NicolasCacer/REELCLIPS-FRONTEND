@@ -1,8 +1,11 @@
 // src/features/profile/controllers/useProfile.ts
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { useAuth } from "@/features/auth/controllers/authContext";
 
 import {
   getProfileService,
@@ -11,67 +14,22 @@ import {
   changeUsernameService,
   deleteAccountService,
 } from "@/features/profile/services/profile.service";
+
 import { getCanalReelsService } from "@/features/feed/services/reel.service";
 
 import type { PerfilInfo, ReelInfo, UsuarioInfo } from "@/shared/types/api.types";
 import { EstadoReel } from "@/shared/types/api.types";
 
-/**
- * Controlador del Perfil (capa de presentación).
- *
- * Consume EXCLUSIVAMENTE servicios de frontend existentes (perfil + reels).
- * No modifica el backend.
- *
- * Limitación de contrato: el backend no expone el `canalId` del usuario a
- * partir de su `usuarioId`, y las publicaciones solo se listan por canal
- * (GET /api/reels/canal/{canalId}). Por eso el canalId se resuelve de forma
- * defensiva: del propio perfil si lo trajera, o de localStorage. Si no se
- * puede determinar, se muestran publicaciones de marcador de posición.
- */
-
-const STORAGE_USER = "reelclips_user";
-const STORAGE_USER_ID = "reelclips_userId";
 const STORAGE_CANAL_ID = "reelclips_canalId";
 
 type PerfilConCanal = PerfilInfo & { canalId?: number };
 
-// Publicaciones de marcador de posición (sin backend / sin canalId conocido).
-const FALLBACK_PUBLICACIONES: ReelInfo[] = Array.from({ length: 6 }).map((_, i) => ({
-  id: -(i + 1),
-  urlVideo: "",
-  urlMiniatura: "",
-  descripcion: "Publicación de ejemplo",
-  duracionSegundos: 30,
-  tamanoArchivoMB: 0,
-  estado: EstadoReel.ACTIVO,
-  fechaPublicacion: new Date().toISOString(),
-  contadorLikes: [128, 87, 240, 56, 19, 312][i] ?? 0,
-  contadorComentarios: [12, 4, 33, 7, 1, 28][i] ?? 0,
-  canalId: 0,
-  categorias: [["Arte"], ["Música"], ["Estudio"], ["Humor"], ["Arte"], ["Deportes"]][i] ?? [],
-}));
-
-function getStoredUserId(): number {
-  if (typeof window === "undefined") return 1;
-  const raw = window.localStorage.getItem(STORAGE_USER_ID);
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : 1;
-}
-
-function getStoredUser(): UsuarioInfo | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_USER);
-    return raw ? (JSON.parse(raw) as UsuarioInfo) : null;
-  } catch {
-    return null;
-  }
-}
-
 function getStoredCanalId(): number | null {
   if (typeof window === "undefined") return null;
+
   const raw = window.localStorage.getItem(STORAGE_CANAL_ID);
   const n = raw ? Number(raw) : NaN;
+
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
@@ -88,24 +46,28 @@ export type GuardarPerfilInput = {
 
 export function useProfile() {
   const router = useRouter();
+  const { user, setUser, logout } = useAuth();
 
   const [usuario, setUsuario] = useState<UsuarioInfo | null>(null);
-  const [usuarioId, setUsuarioId] = useState<number>(1);
   const [perfil, setPerfil] = useState<PerfilInfo | null>(null);
   const [publicaciones, setPublicaciones] = useState<ReelInfo[]>([]);
 
-  const [loadingPerfil, setLoadingPerfil] = useState<boolean>(true);
-  const [loadingPublicaciones, setLoadingPublicaciones] = useState<boolean>(true);
-  const [guardando, setGuardando] = useState<boolean>(false);
+  const [loadingPerfil, setLoadingPerfil] = useState(true);
+  const [loadingPublicaciones, setLoadingPublicaciones] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  // --- Carga inicial: perfil + publicaciones ------------------------------
+  const usuarioId = user?.id;
+
   useEffect(() => {
-    const uid = getStoredUserId();
-    setUsuarioId(uid);
-    const stored = getStoredUser();
-    setUsuario(stored);
+    if (!usuarioId) {
+      router.replace("/login");
+      return;
+    }
+
+    setUsuario(user as UsuarioInfo);
 
     let cancelled = false;
 
@@ -115,79 +77,87 @@ export function useProfile() {
 
       let canalId: number | null = getStoredCanalId();
 
-      // Perfil
       try {
-        const p = await getProfileService({ id: uid });
+        const p = await getProfileService({ id: usuarioId });
+
         if (!cancelled && p) {
           setPerfil(p);
           canalId = (p as PerfilConCanal).canalId ?? canalId;
         }
       } catch {
-        // Respaldo con los datos de localStorage del login.
-        if (!cancelled && stored) {
+        if (!cancelled && user) {
           setPerfil({
-            id: stored.id,
-            username: stored.username,
-            nombreVisualizacion: stored.nombreVisualizacion,
-            fotoPerfil: stored.fotoPerfil,
-            descripcion: stored.descripcion,
-          });
+            id: user.id,
+            username: user.username ?? "",
+            nombreVisualizacion: user.nombreVisualizacion,
+            fotoPerfil: user.fotoPerfil,
+            descripcion: "",
+          } as PerfilInfo);
         }
       } finally {
         if (!cancelled) setLoadingPerfil(false);
       }
 
-      // Publicaciones (por canal)
       try {
         if (canalId != null) {
           const reels = await getCanalReelsService(canalId);
-          if (!cancelled) {
-            setPublicaciones(Array.isArray(reels) ? reels : []);
-          }
+          if (!cancelled) setPublicaciones(Array.isArray(reels) ? reels : []);
         } else if (!cancelled) {
-          // Sin canalId conocido: marcador de posición para previsualizar el layout.
-          setPublicaciones(FALLBACK_PUBLICACIONES);
+          setPublicaciones([]);
         }
       } catch {
-        if (!cancelled) setPublicaciones(FALLBACK_PUBLICACIONES);
+        if (!cancelled) setPublicaciones([]);
       } finally {
         if (!cancelled) setLoadingPublicaciones(false);
       }
     };
 
     void cargar();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [usuarioId, user, router]);
 
-  // --- Estadísticas -------------------------------------------------------
   const publicacionesActivas = useMemo(
     () => publicaciones.filter((r) => r.estado !== EstadoReel.ELIMINADO),
     [publicaciones]
   );
+
   const totalLikes = useMemo(
     () => publicacionesActivas.reduce((s, r) => s + (r.contadorLikes || 0), 0),
     [publicacionesActivas]
   );
+
   const totalComentarios = useMemo(
-    () => publicacionesActivas.reduce((s, r) => s + (r.contadorComentarios || 0), 0),
+    () =>
+      publicacionesActivas.reduce(
+        (s, r) => s + (r.contadorComentarios || 0),
+        0
+      ),
     [publicacionesActivas]
   );
 
-  // --- Acciones -----------------------------------------------------------
-
   const guardarPerfil = useCallback(
     async ({ nombre, descripcion, fotoFile }: GuardarPerfilInput): Promise<boolean> => {
+      if (!usuarioId) {
+        setError("No hay usuario autenticado.");
+        return false;
+      }
+
       setGuardando(true);
       setError(null);
       setAviso(null);
+
       try {
         let fotoUrl = perfil?.fotoPerfil ?? "";
 
-        // Si hay un archivo nuevo, súbelo primero (multipart) y usa su URL.
         if (fotoFile) {
-          const subido = await uploadProfilePhotoService({ id: usuarioId, foto: fotoFile });
+          const subido = await uploadProfilePhotoService({
+            id: usuarioId,
+            foto: fotoFile,
+          });
+
           fotoUrl = subido?.fotoPerfil ?? fotoUrl;
         }
 
@@ -198,6 +168,13 @@ export function useProfile() {
           descripcion,
         });
 
+        setUser({
+          id: actualizado.id,
+          username: actualizado.username,
+          nombreVisualizacion: actualizado.nombreVisualizacion ?? undefined,
+          fotoPerfil: actualizado.fotoPerfil ?? undefined,
+        });
+
         setUsuario(actualizado);
         setPerfil({
           id: actualizado.id,
@@ -206,9 +183,7 @@ export function useProfile() {
           fotoPerfil: actualizado.fotoPerfil,
           descripcion: actualizado.descripcion,
         });
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(STORAGE_USER, JSON.stringify(actualizado));
-        }
+
         setAviso("Perfil actualizado");
         return true;
       } catch (e) {
@@ -218,23 +193,41 @@ export function useProfile() {
         setGuardando(false);
       }
     },
-    [perfil, usuarioId]
+    [usuarioId, perfil, setUser]
   );
 
   const cambiarUsername = useCallback(
     async (nuevoUsername: string): Promise<boolean> => {
+      if (!usuarioId) {
+        setError("No hay usuario autenticado.");
+        return false;
+      }
+
       const limpio = nuevoUsername.trim();
       if (!limpio) return false;
+
       setGuardando(true);
       setError(null);
       setAviso(null);
+
       try {
-        const actualizado = await changeUsernameService({ id: usuarioId, nuevoUsername: limpio });
+        const actualizado = await changeUsernameService({
+          id: usuarioId,
+          nuevoUsername: limpio,
+        });
+
+        setUser({
+          id: actualizado.id,
+          username: actualizado.username,
+          nombreVisualizacion: actualizado.nombreVisualizacion ?? undefined,
+          fotoPerfil: actualizado.fotoPerfil ?? undefined,
+        });
+
         setUsuario(actualizado);
-        setPerfil((prev) => (prev ? { ...prev, username: actualizado.username } : prev));
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(STORAGE_USER, JSON.stringify(actualizado));
-        }
+        setPerfil((prev) =>
+          prev ? { ...prev, username: actualizado.username } : prev
+        );
+
         setAviso("Nombre de usuario actualizado");
         return true;
       } catch (e) {
@@ -244,21 +237,27 @@ export function useProfile() {
         setGuardando(false);
       }
     },
-    [usuarioId]
+    [usuarioId, setUser]
   );
 
   const cerrarSesion = useCallback(() => {
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_USER);
-      window.localStorage.removeItem(STORAGE_USER_ID);
       window.localStorage.removeItem(STORAGE_CANAL_ID);
     }
+
+    logout();
     router.push("/login");
-  }, [router]);
+  }, [logout, router]);
 
   const desactivarCuenta = useCallback(async (): Promise<boolean> => {
+    if (!usuarioId) {
+      setError("No hay usuario autenticado.");
+      return false;
+    }
+
     setGuardando(true);
     setError(null);
+
     try {
       await deleteAccountService({ id: usuarioId });
       cerrarSesion();
@@ -276,20 +275,19 @@ export function useProfile() {
   }, []);
 
   return {
-    // datos
     usuario,
     perfil,
     publicaciones: publicacionesActivas,
     totalPublicaciones: publicacionesActivas.length,
     totalLikes,
     totalComentarios,
-    // estado
+
     loadingPerfil,
     loadingPublicaciones,
     guardando,
     error,
     aviso,
-    // acciones
+
     guardarPerfil,
     cambiarUsername,
     cerrarSesion,
