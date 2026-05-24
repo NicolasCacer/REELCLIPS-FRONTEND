@@ -155,7 +155,23 @@ export function useHomeFeed() {
     null
   );
 
-  const reelActivo = reels[reelActivoIndex] ?? null;
+  /**
+   * FILTRAR REELS POR CATEGORÍA
+   */
+  const reelsFiltrados = useMemo(() => {
+    if (!categoriaActiva) {
+      return reels;
+    }
+
+    return reels.filter((reel) =>
+      reel.categorias?.includes(
+        categoriaActiva
+      )
+    );
+  }, [reels, categoriaActiva]);
+
+  const reelActivo =
+    reelsFiltrados[reelActivoIndex] ?? null;
 
   const contactos: HomeContacto[] = useMemo(
     () => [
@@ -343,6 +359,8 @@ export function useHomeFeed() {
       setCategoriaActiva((prev) =>
         prev === nombre ? null : nombre
       );
+      // Resetear a primer reel al cambiar categoría
+      setReelActivoIndex(0);
     },
     []
   );
@@ -358,9 +376,11 @@ export function useHomeFeed() {
 
   const reelSiguiente = useCallback(() => {
     setReelActivoIndex((i) =>
-      i < reels.length - 1 ? i + 1 : i
+      i < reelsFiltrados.length - 1
+        ? i + 1
+        : i
     );
-  }, [reels.length]);
+  }, [reelsFiltrados.length]);
 
   /**
    * LIKE
@@ -554,7 +574,7 @@ export function useHomeFeed() {
     categorias,
     categoriaActiva,
 
-    reels,
+    reels: reelsFiltrados,
     reelActivo,
     reelActivoIndex,
 
