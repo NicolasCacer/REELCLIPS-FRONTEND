@@ -45,12 +45,12 @@ export type PerfilInfo = {
 export type ReelInfo = {
   id: number;
   urlVideo: string;
-  urlMiniatura: string;
+  urlMiniatura: string | null;
   descripcion: string | null;
   duracionSegundos: number;
   tamanoArchivoMB: number;
   estado: EstadoReel;
-  fechaPublicacion: string; // ISO 8601 DateTime
+  fechaPublicacion: string;
   contadorLikes: number;
   contadorComentarios: number;
   canalId: number;

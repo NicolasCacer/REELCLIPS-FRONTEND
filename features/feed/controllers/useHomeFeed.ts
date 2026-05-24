@@ -1,7 +1,12 @@
 // src/features/feed/controllers/useHomeFeed.ts
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { useAuth } from "@/features/auth/controllers/authContext";
 
@@ -19,14 +24,22 @@ import {
   addCommentService,
 } from "@/features/feed/services/interactions.service";
 
+import { getProfileService } from "@/features/profile/services/profile.service";
+
 import type {
   ReelInfo,
   CategoriaInfo,
   ComentarioDetalle,
   UsuarioInfo,
+  PerfilInfo,
 } from "@/shared/types/api.types";
 
-import { EstadoReel, TipoInteraccion } from "@/shared/types/api.types";
+import type { CommentProfileMap } from "@/features/feed/model/comments.types";
+
+import {
+  EstadoReel,
+  TipoInteraccion,
+} from "@/shared/types/api.types";
 
 const FALLBACK_CATEGORIES: string[] = [
   "Arte",
@@ -82,7 +95,7 @@ const FALLBACK_COMMENTS: ComentarioDetalle[] = [
     usuarioId: 12,
     reelId: -1,
     fecha: new Date().toISOString(),
-    contenido: "Wow, me encanta, me parece genial",
+    contenido: "Muy buen reel 🔥",
   },
   {
     id: -3,
@@ -90,7 +103,7 @@ const FALLBACK_COMMENTS: ComentarioDetalle[] = [
     usuarioId: 13,
     reelId: -1,
     fecha: new Date().toISOString(),
-    contenido: "Wow, me encanta, me parece genial",
+    contenido: "Necesito más contenido así",
   },
 ];
 
@@ -103,38 +116,133 @@ export type HomeContacto = {
 export function useHomeFeed() {
   const { user } = useAuth();
 
-  const [usuario, setUsuario] = useState<UsuarioInfo | null>(null);
-  const [usuarioId, setUsuarioId] = useState<number | null>(null);
+  const [usuario, setUsuario] =
+    useState<UsuarioInfo | null>(null);
 
-  const [categorias, setCategorias] = useState<string[]>(FALLBACK_CATEGORIES);
-  const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
+  const [usuarioId, setUsuarioId] =
+    useState<number | null>(null);
+
+  const [categorias, setCategorias] = useState<string[]>(
+    FALLBACK_CATEGORIES
+  );
+
+  const [categoriaActiva, setCategoriaActiva] =
+    useState<string | null>(null);
 
   const [reels, setReels] = useState<ReelInfo[]>([]);
-  const [reelActivoIndex, setReelActivoIndex] = useState<number>(0);
 
-  const [comentarios, setComentarios] = useState<ComentarioDetalle[]>([]);
-  const [likedReels, setLikedReels] = useState<Set<number>>(new Set());
+  const [reelActivoIndex, setReelActivoIndex] =
+    useState<number>(0);
 
-  const [loadingReels, setLoadingReels] = useState<boolean>(true);
-  const [loadingComentarios, setLoadingComentarios] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [comentarios, setComentarios] = useState<
+    ComentarioDetalle[]
+  >([]);
+
+  const [perfilesComentarios, setPerfilesComentarios] =
+    useState<CommentProfileMap>({});
+
+  const [likedReels, setLikedReels] = useState<Set<number>>(
+    new Set()
+  );
+
+  const [loadingReels, setLoadingReels] =
+    useState<boolean>(true);
+
+  const [loadingComentarios, setLoadingComentarios] =
+    useState<boolean>(false);
+
+  const [error, setError] = useState<string | null>(
+    null
+  );
 
   const reelActivo = reels[reelActivoIndex] ?? null;
 
   const contactos: HomeContacto[] = useMemo(
     () => [
-      { id: 1, nombre: "Pepito Peréz", fotoPerfil: null },
-      { id: 2, nombre: "Pepito Peréz", fotoPerfil: null },
+      {
+        id: 1,
+        nombre: "Pepito Peréz",
+        fotoPerfil: null,
+      },
+      {
+        id: 2,
+        nombre: "Pepito Peréz",
+        fotoPerfil: null,
+      },
     ],
     []
   );
 
+  /**
+   * CARGAR COMENTARIOS
+   */
+  const cargarComentarios = useCallback(
+    async (reelId: number) => {
+      if (reelId < 0) {
+        setComentarios(FALLBACK_COMMENTS);
+        setPerfilesComentarios({});
+        return;
+      }
+
+      setLoadingComentarios(true);
+
+      try {
+        const data = await getCommentsService({
+          reelId,
+        });
+
+        const lista = Array.isArray(data) ? data : [];
+
+        // FALLBACK TEMPORAL:
+        // backend todavía no manda "contenido"
+        const normalizados = lista.map((c, index) => ({
+          ...c,
+          contenido:
+            c.contenido?.trim() ||
+            `Comentario ${index + 1}`,
+        }));
+
+        setComentarios(normalizados);
+
+        // Cargar perfiles de usuarios que comentaron
+        const usuariosUnicos = Array.from(
+          new Set(normalizados.map((c) => c.usuarioId))
+        );
+
+        const perfiles: CommentProfileMap = {};
+
+        for (const uid of usuariosUnicos) {
+          try {
+            const perfil = await getProfileService({
+              id: uid,
+            });
+            perfiles[uid] = perfil;
+          } catch {
+            // Si falla cargar el perfil, continuar
+          }
+        }
+
+        setPerfilesComentarios(perfiles);
+      } catch {
+        setComentarios([]);
+        setPerfilesComentarios({});
+      } finally {
+        setLoadingComentarios(false);
+      }
+    },
+    []
+  );
+
+  /**
+   * CARGAR FEED
+   */
   useEffect(() => {
     if (!user?.id) {
       setUsuario(null);
       setUsuarioId(null);
       setReels(FALLBACK_REELS);
       setLoadingReels(false);
+
       return;
     }
 
@@ -150,16 +258,27 @@ export function useHomeFeed() {
       setError(null);
       setReelActivoIndex(0);
 
+      /**
+       * Categorías
+       */
       try {
-        const cats: CategoriaInfo[] = await getAllCategoriesService();
+        const cats: CategoriaInfo[] =
+          await getAllCategoriesService();
 
-        if (!cancelled && Array.isArray(cats) && cats.length > 0) {
+        if (
+          !cancelled &&
+          Array.isArray(cats) &&
+          cats.length > 0
+        ) {
           setCategorias(cats.map((c) => c.nombre));
         }
       } catch {
-        // Mantener categorías de marcador de posición.
+        // Mantener fallback
       }
 
+      /**
+       * Feed
+       */
       try {
         const feed = await getFeedService({
           usuarioId: uid,
@@ -169,14 +288,23 @@ export function useHomeFeed() {
         const lista = feed?.reels ?? [];
 
         if (!cancelled) {
-          setReels(lista.length > 0 ? lista : FALLBACK_REELS);
+          setReels(
+            lista.length > 0
+              ? lista
+              : FALLBACK_REELS
+          );
         }
       } catch {
         try {
-          const todos = await getAllReelsService();
+          const todos =
+            await getAllReelsService();
 
           if (!cancelled) {
-            setReels(todos.length > 0 ? todos : FALLBACK_REELS);
+            setReels(
+              todos.length > 0
+                ? todos
+                : FALLBACK_REELS
+            );
           }
         } catch {
           if (!cancelled) {
@@ -197,67 +325,63 @@ export function useHomeFeed() {
     };
   }, [user]);
 
+  /**
+   * RECARGAR COMENTARIOS
+   * CUANDO CAMBIA EL REEL
+   */
   useEffect(() => {
     if (!reelActivo) return;
 
-    if (reelActivo.id < 0) {
-      setComentarios(FALLBACK_COMMENTS);
-      return;
-    }
+    void cargarComentarios(reelActivo.id);
+  }, [reelActivo, cargarComentarios]);
 
-    let cancelled = false;
+  /**
+   * CATEGORÍA
+   */
+  const seleccionarCategoria = useCallback(
+    (nombre: string) => {
+      setCategoriaActiva((prev) =>
+        prev === nombre ? null : nombre
+      );
+    },
+    []
+  );
 
-    const cargarComentarios = async () => {
-      setLoadingComentarios(true);
-
-      try {
-        const data = await getCommentsService({
-          reelId: reelActivo.id,
-        });
-
-        if (!cancelled) {
-          setComentarios(Array.isArray(data) ? data : []);
-        }
-      } catch {
-        if (!cancelled) {
-          setComentarios([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingComentarios(false);
-        }
-      }
-    };
-
-    void cargarComentarios();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reelActivo]);
-
-  const seleccionarCategoria = useCallback((nombre: string) => {
-    setCategoriaActiva((prev) => (prev === nombre ? null : nombre));
-  }, []);
-
+  /**
+   * NAVEGACIÓN
+   */
   const reelAnterior = useCallback(() => {
-    setReelActivoIndex((i) => (i > 0 ? i - 1 : i));
+    setReelActivoIndex((i) =>
+      i > 0 ? i - 1 : i
+    );
   }, []);
 
   const reelSiguiente = useCallback(() => {
-    setReelActivoIndex((i) => (i < reels.length - 1 ? i + 1 : i));
+    setReelActivoIndex((i) =>
+      i < reels.length - 1 ? i + 1 : i
+    );
   }, [reels.length]);
 
+  /**
+   * LIKE
+   */
   const toggleLike = useCallback(async () => {
     if (!reelActivo || !usuarioId) return;
 
     const reelId = reelActivo.id;
-    const yaLikeado = likedReels.has(reelId);
 
+    const yaLikeado =
+      likedReels.has(reelId);
+
+    /**
+     * Optimista
+     */
     setLikedReels((prev) => {
       const next = new Set(prev);
+
       if (yaLikeado) next.delete(reelId);
       else next.add(reelId);
+
       return next;
     });
 
@@ -268,7 +392,8 @@ export function useHomeFeed() {
               ...r,
               contadorLikes: Math.max(
                 0,
-                r.contadorLikes + (yaLikeado ? -1 : 1)
+                r.contadorLikes +
+                  (yaLikeado ? -1 : 1)
               ),
             }
           : r
@@ -279,15 +404,26 @@ export function useHomeFeed() {
 
     try {
       if (yaLikeado) {
-        await removeLikeService({ usuarioId, reelId });
+        await removeLikeService({
+          usuarioId,
+          reelId,
+        });
       } else {
-        await addLikeService({ usuarioId, reelId });
+        await addLikeService({
+          usuarioId,
+          reelId,
+        });
       }
     } catch {
+      /**
+       * Rollback
+       */
       setLikedReels((prev) => {
         const next = new Set(prev);
+
         if (yaLikeado) next.add(reelId);
         else next.delete(reelId);
+
         return next;
       });
 
@@ -298,23 +434,40 @@ export function useHomeFeed() {
                 ...r,
                 contadorLikes: Math.max(
                   0,
-                  r.contadorLikes + (yaLikeado ? 1 : -1)
+                  r.contadorLikes +
+                    (yaLikeado ? 1 : -1)
                 ),
               }
             : r
         )
       );
     }
-  }, [reelActivo, likedReels, usuarioId]);
+  }, [
+    reelActivo,
+    likedReels,
+    usuarioId,
+  ]);
 
+  /**
+   * COMENTAR
+   */
   const agregarComentario = useCallback(
     async (contenido: string) => {
       const texto = contenido.trim();
 
-      if (!texto || !reelActivo || !usuarioId) return;
+      if (
+        !texto ||
+        !reelActivo ||
+        !usuarioId
+      ) {
+        return;
+      }
 
       const reelId = reelActivo.id;
 
+      /**
+       * Comentario optimista
+       */
       const optimista: ComentarioDetalle = {
         id: Date.now() * -1,
         tipo: TipoInteraccion.COMENTARIO,
@@ -324,14 +477,21 @@ export function useHomeFeed() {
         contenido: texto,
       };
 
-      setComentarios((prev) => [...prev, optimista]);
+      setComentarios((prev) => [
+        optimista,
+        ...prev,
+      ]);
 
+      /**
+       * Contador optimista
+       */
       setReels((prev) =>
         prev.map((r) =>
           r.id === reelId
             ? {
                 ...r,
-                contadorComentarios: r.contadorComentarios + 1,
+                contadorComentarios:
+                  r.contadorComentarios + 1,
               }
             : r
         )
@@ -340,64 +500,79 @@ export function useHomeFeed() {
       if (reelId < 0) return;
 
       try {
-        const creado = await addCommentService({
+        await addCommentService({
           usuarioId,
           reelId,
           contenido: texto,
         });
 
+        /**
+         * Re-sync real
+         */
+        await cargarComentarios(reelId);
+      } catch {
+        /**
+         * Rollback
+         */
         setComentarios((prev) =>
-          prev.map((c) =>
-            c.id === optimista.id
-              ? {
-                  ...c,
-                  id: creado?.id ?? c.id,
-                  fecha: creado?.fecha ?? c.fecha,
-                }
-              : c
+          prev.filter(
+            (c) => c.id !== optimista.id
           )
         );
-      } catch {
-        setComentarios((prev) => prev.filter((c) => c.id !== optimista.id));
 
         setReels((prev) =>
           prev.map((r) =>
             r.id === reelId
               ? {
                   ...r,
-                  contadorComentarios: Math.max(
-                    0,
-                    r.contadorComentarios - 1
-                  ),
+                  contadorComentarios:
+                    Math.max(
+                      0,
+                      r.contadorComentarios - 1
+                    ),
                 }
               : r
           )
         );
       }
     },
-    [reelActivo, usuarioId]
+    [
+      reelActivo,
+      usuarioId,
+      cargarComentarios,
+    ]
   );
 
-  const reelLikeado = reelActivo ? likedReels.has(reelActivo.id) : false;
+  const reelLikeado = reelActivo
+    ? likedReels.has(reelActivo.id)
+    : false;
 
   return {
     usuario,
     contactos,
+
     categorias,
     categoriaActiva,
+
     reels,
     reelActivo,
     reelActivoIndex,
+
     comentarios,
+    perfilesComentarios,
+
     reelLikeado,
 
     loadingReels,
     loadingComentarios,
+
     error,
 
     seleccionarCategoria,
+
     reelAnterior,
     reelSiguiente,
+
     toggleLike,
     agregarComentario,
   };

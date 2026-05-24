@@ -4,30 +4,43 @@
 import { useRef } from "react";
 
 import { useHomeFeed } from "@/features/feed/controllers/useHomeFeed";
+
 import { CategoryBar } from "./components/CategoryBar";
 import { ReelViewer } from "./components/ReelViewer";
-import { CommentsPanel, type CommentsPanelHandle } from "./components/CommentsPanel";
+
+import {
+  CommentsPanel,
+  type CommentsPanelHandle,
+} from "@/features/feed/views/components/CommentsPanel";
 
 export function HomeView() {
   const {
-    usuario,
     categorias,
     categoriaActiva,
+
     reels,
     reelActivo,
     reelActivoIndex,
+
     comentarios,
+    perfilesComentarios,
+
     reelLikeado,
+
     loadingReels,
     loadingComentarios,
+
     seleccionarCategoria,
+
     reelAnterior,
     reelSiguiente,
+
     toggleLike,
     agregarComentario,
   } = useHomeFeed();
 
-  const comentariosRef = useRef<CommentsPanelHandle>(null);
+  const comentariosRef =
+    useRef<CommentsPanelHandle>(null);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
@@ -43,9 +56,13 @@ export function HomeView() {
           liked={reelLikeado}
           loading={loadingReels}
           puedeSubir={reelActivoIndex > 0}
-          puedeBajar={reelActivoIndex < reels.length - 1}
+          puedeBajar={
+            reelActivoIndex < reels.length - 1
+          }
           onToggleLike={toggleLike}
-          onComentar={() => comentariosRef.current?.focus()}
+          onComentar={() =>
+            comentariosRef.current?.focus()
+          }
           onAnterior={reelAnterior}
           onSiguiente={reelSiguiente}
         />
@@ -53,8 +70,10 @@ export function HomeView() {
         <CommentsPanel
           ref={comentariosRef}
           comentarios={comentarios}
+          perfilesComentarios={
+            perfilesComentarios
+          }
           loading={loadingComentarios}
-          usuario={usuario}
           onEnviar={agregarComentario}
         />
       </div>
