@@ -8,6 +8,8 @@ import {
   ChevronDown,
   Play,
   Pause,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 import { useRef, useState, useEffect } from "react";
@@ -39,6 +41,7 @@ export function ReelViewer({
 }: ReelViewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [showPlayButton, setShowPlayButton] =
     useState(false);
   const hideButtonTimeoutRef =
@@ -68,8 +71,15 @@ export function ReelViewer({
       () => {
         setShowPlayButton(false);
       },
-      3000 // Ocultar después de 3 segundos
+      1500 // Ocultar después de 1.5 segundos
     );
+  };
+
+  const toggleMute = () => {
+    if (!videoRef.current) return;
+
+    videoRef.current.muted = !videoRef.current.muted;
+    setIsMuted(!isMuted);
   };
 
   const handleVideoInteraction = () => {
@@ -86,7 +96,7 @@ export function ReelViewer({
   }, []);
   return (
     <div className="flex h-full min-h-0 flex-1 items-center justify-center">
-      <div className="relative flex h-full max-h-[640px] w-full max-w-[380px] items-center justify-center">
+      <div className="relative flex h-full max-h-[90vh] w-full max-w-[450px] items-center justify-center">
         {/* Marco del reel (formato vertical 9:16) */}
         <div className="relative aspect-[9/16] h-full max-h-full w-auto overflow-hidden rounded-3xl border border-soft/50 bg-primary shadow-xl">
           {/* Video */}
@@ -118,7 +128,7 @@ export function ReelViewer({
           )}
 
           {/* Overlay para legibilidad */}
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-primary/20" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-primary/20" />
 
           {/* Botón Play/Pause Central */}
           {reel?.urlVideo && (
@@ -129,21 +139,21 @@ export function ReelViewer({
               aria-label={
                 isPlaying ? "Pausar" : "Reproducir"
               }
-              className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-300 ${
+              className={`absolute left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-300 ${
                 showPlayButton
                   ? "pointer-events-auto opacity-100"
                   : "pointer-events-none opacity-0"
               }`}
             >
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/30 backdrop-blur-sm hover:bg-white/50">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/30 backdrop-blur-sm hover:bg-white/50">
                 {isPlaying ? (
                   <Pause
-                    size={48}
+                    size={36}
                     className="fill-white text-white"
                   />
                 ) : (
                   <Play
-                    size={48}
+                    size={36}
                     className="fill-white text-white"
                   />
                 )}
@@ -177,6 +187,22 @@ export function ReelViewer({
               </div>
             ) : null}
           </div>
+
+          {/* Botón Mute/Unmute */}
+          {reel?.urlVideo && (
+            <button
+              type="button"
+              onClick={toggleMute}
+              aria-label={isMuted ? "Activar audio" : "Silenciar"}
+              className="absolute right-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-full bg-white/30 text-white backdrop-blur-sm transition hover:bg-white/50"
+            >
+              {isMuted ? (
+                <VolumeX size={18} />
+              ) : (
+                <Volume2 size={18} />
+              )}
+            </button>
+          )}
 
           {/* Navegación */}
           <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-2">
