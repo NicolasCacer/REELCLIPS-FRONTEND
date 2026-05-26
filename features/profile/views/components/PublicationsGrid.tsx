@@ -1,10 +1,11 @@
 // src/features/profile/views/components/PublicationsGrid.tsx
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Heart, Images, MessageCircle, Play } from "lucide-react";
 
 import type { ReelInfo } from "@/shared/types/api.types";
+import { ReelModal } from "@/features/feed/views/components/ReelModal";
 
 type PublicationsGridProps = {
   publicaciones: ReelInfo[];
@@ -15,7 +16,13 @@ function getMediaUrl(url: string | null | undefined): string | null {
   return url ? encodeURI(url) : null;
 }
 
-function PublicationTile({ reel }: { reel: ReelInfo }) {
+function PublicationTile({
+  reel,
+  onOpen,
+}: {
+  reel: ReelInfo;
+  onOpen: () => void;
+}) {
   const playPromiseRef = useRef<Promise<void> | null>(null);
 
   const miniaturaUrl = getMediaUrl(reel.urlMiniatura);
@@ -51,7 +58,19 @@ function PublicationTile({ reel }: { reel: ReelInfo }) {
   };
 
   return (
-    <div className="group relative aspect-square overflow-hidden rounded-lg bg-primary">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      aria-label={`Abrir publicación: ${reel.descripcion ?? "reel"}`}
+      className="group relative aspect-square cursor-pointer overflow-hidden rounded-lg bg-primary outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
       {miniaturaUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -98,6 +117,8 @@ export function PublicationsGrid({
   publicaciones,
   loading,
 }: PublicationsGridProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
   if (loading) {
     return (
       <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
@@ -128,10 +149,24 @@ export function PublicationsGrid({
   }
 
   return (
-    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
-      {publicaciones.map((reel) => (
-        <PublicationTile key={reel.id} reel={reel} />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+        {publicaciones.map((reel, index) => (
+          <PublicationTile
+            key={reel.id}
+            reel={reel}
+            onOpen={() => setActiveIndex(index)}
+          />
+        ))}
+      </div>
+
+      {activeIndex !== null && (
+        <ReelModal
+          reels={publicaciones}
+          startIndex={activeIndex}
+          onClose={() => setActiveIndex(null)}
+        />
+      )}
+    </>
   );
 }
