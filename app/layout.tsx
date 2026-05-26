@@ -26,8 +26,9 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${poppins.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full flex flex-col bg-background text-foreground" suppressHydrationWarning>
         <AuthProvider>
           {children}
         </AuthProvider>
