@@ -1,6 +1,6 @@
 // features/profile/model/profile.types.ts
 
-import type { UsuarioInfo, PerfilInfo, EstadoCuenta } from "@/shared/types/api.types";
+import type { UsuarioInfo, PerfilInfo, ReelInfo } from "@/shared/types/api.types";
 
 // Requests
 export type GetProfileRequest = {
@@ -28,6 +28,10 @@ export type DeleteAccountRequest = {
   id: number;
 };
 
+export type GetProfileReelsRequest = {
+  canalId: number;
+};
+
 // Responses
 export type GetProfileResponse = PerfilInfo;
 
@@ -36,6 +40,8 @@ export type UpdateProfileResponse = UsuarioInfo;
 export type UploadProfilePhotoResponse = UsuarioInfo;
 
 export type ChangeUsernameResponse = UsuarioInfo;
+
+export type GetProfileReelsResponse = ReelInfo[];
 
 // Local types
 export type UserProfile = PerfilInfo;

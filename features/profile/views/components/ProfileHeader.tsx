@@ -11,8 +11,6 @@ type ProfileHeaderProps = {
   perfil: PerfilInfo | null;
   usuario: UsuarioInfo | null;
   totalPublicaciones: number;
-  totalLikes: number;
-  totalComentarios: number;
   onEditar: () => void;
   onCerrarSesion: () => void;
   onDesactivar: () => void;
@@ -31,8 +29,6 @@ export function ProfileHeader({
   perfil,
   usuario,
   totalPublicaciones,
-  totalLikes,
-  totalComentarios,
   onEditar,
   onCerrarSesion,
   onDesactivar,
@@ -49,9 +45,9 @@ export function ProfileHeader({
       <Avatar nombre={nombre} src={fotoPerfil} size={132} />
 
       <div className="flex min-w-0 flex-1 flex-col items-center gap-4 sm:items-start">
-        {/* Username + acciones */}
+        {/* Nombre + acciones */}
         <div className="flex w-full flex-wrap items-center justify-center gap-3 sm:justify-start">
-          <h1 className="text-2xl font-semibold text-primary">@{username}</h1>
+          <h1 className="text-2xl font-semibold text-primary">{nombre}</h1>
 
           <button
             type="button"
@@ -113,13 +109,10 @@ export function ProfileHeader({
         {/* Estadísticas */}
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1 text-sm sm:justify-start">
           <Stat valor={totalPublicaciones} etiqueta="publicaciones" />
-          <Stat valor={totalLikes} etiqueta="me gusta" />
-          <Stat valor={totalComentarios} etiqueta="comentarios" />
         </div>
 
-        {/* Nombre + bio */}
+        {/* Bio */}
         <div className="w-full text-center sm:text-left">
-          <p className="font-semibold text-primary">{nombre}</p>
           {descripcion ? (
             <p className="mt-0.5 whitespace-pre-line text-sm text-secondary">{descripcion}</p>
           ) : (

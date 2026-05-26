@@ -9,44 +9,36 @@ import { useAuth } from "@/features/auth/controllers/authContext";
 
 import {
   getProfileService,
+  getProfileReelsService,
   updateProfileService,
   uploadProfilePhotoService,
   changeUsernameService,
   deleteAccountService,
 } from "@/features/profile/services/profile.service";
 
-// ===== 👇 CAMBIO 1 (import) 👇 =====
-import {
-  getCanalReelsService,
-  getAllReelsService,
-} from "@/features/feed/services/reel.service";
-// ===== 👆 fin del cambio 1 👆 =====
-
 import type { PerfilInfo, ReelInfo, UsuarioInfo } from "@/shared/types/api.types";
 import { EstadoReel } from "@/shared/types/api.types";
 
 const STORAGE_CANAL_ID = "reelclips_canalId";
-
-type PerfilConCanal = PerfilInfo & { canalId?: number };
-
-function getStoredCanalId(): number | null {
-  if (typeof window === "undefined") return null;
-
-  const raw = window.localStorage.getItem(STORAGE_CANAL_ID);
-  const n = raw ? Number(raw) : NaN;
-
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
 
 function getMensajeError(e: unknown, fallback: string): string {
   if (e instanceof Error && e.message) return e.message;
   return fallback;
 }
 
+function getFechaPublicacionTime(reel: ReelInfo): number {
+  const fecha = new Date(reel.fechaPublicacion).getTime();
+  return Number.isFinite(fecha) ? fecha : 0;
+}
+
 export type GuardarPerfilInput = {
   nombre: string;
   descripcion: string;
   fotoFile?: File | null;
+};
+
+type DesactivarCuentaOptions = {
+  confirmar?: boolean;
 };
 
 export function useProfile() {
@@ -72,27 +64,21 @@ export function useProfile() {
       return;
     }
 
-    setUsuario(user as UsuarioInfo);
-
     let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) setUsuario(user as UsuarioInfo);
+    });
 
     const cargar = async () => {
       setLoadingPerfil(true);
       setLoadingPublicaciones(true);
-
-      // canalId: primero el guardado (al publicar), luego el que traiga el perfil
-      let canalId: number | null = getStoredCanalId();
 
       try {
         const p = await getProfileService({ id: usuarioId });
 
         if (!cancelled && p) {
           setPerfil(p);
-
-          const canalDelPerfil = (p as PerfilConCanal).canalId;
-          if (canalDelPerfil != null) {
-            canalId = canalDelPerfil;
-          }
         }
       } catch {
         if (!cancelled && user) {
@@ -108,39 +94,14 @@ export function useProfile() {
         if (!cancelled) setLoadingPerfil(false);
       }
 
-      // ===== 👇 CAMBIO 2 (carga de reels con plan B por el error 500) 👇 =====
-      // Persistimos el canalId si lo conocemos
-      if (canalId != null && typeof window !== "undefined") {
-        window.localStorage.setItem(STORAGE_CANAL_ID, String(canalId));
-      }
-
       try {
-        if (canalId != null) {
-          let reels: ReelInfo[] = [];
-
-          try {
-            // 1º intento: endpoint del canal
-            reels = await getCanalReelsService(canalId);
-          } catch {
-            // El endpoint /api/reels/canal/{id} está dando 500 en el backend.
-            // Plan B: traemos todos los reels y filtramos por canalId.
-            const todos = await getAllReelsService();
-            reels = Array.isArray(todos)
-              ? todos.filter((r) => r.canalId === canalId)
-              : [];
-          }
-
-          if (!cancelled) setPublicaciones(Array.isArray(reels) ? reels : []);
-        } else {
-          console.warn("[Perfil] No hay canalId guardado.");
-          if (!cancelled) setPublicaciones([]);
-        }
+        const reels = await getProfileReelsService({ canalId: usuarioId });
+        if (!cancelled) setPublicaciones(Array.isArray(reels) ? reels : []);
       } catch {
         if (!cancelled) setPublicaciones([]);
       } finally {
         if (!cancelled) setLoadingPublicaciones(false);
       }
-      // ===== 👆 fin del cambio 2 👆 =====
     };
 
     void cargar();
@@ -150,24 +111,18 @@ export function useProfile() {
     };
   }, [usuarioId, user, router]);
 
-  const publicacionesActivas = useMemo(
-    () => publicaciones.filter((r) => r.estado !== EstadoReel.ELIMINADO),
-    [publicaciones]
-  );
-
-  const totalLikes = useMemo(
-    () => publicacionesActivas.reduce((s, r) => s + (r.contadorLikes || 0), 0),
-    [publicacionesActivas]
-  );
-
-  const totalComentarios = useMemo(
-    () =>
-      publicacionesActivas.reduce(
-        (s, r) => s + (r.contadorComentarios || 0),
-        0
-      ),
-    [publicacionesActivas]
-  );
+  const publicacionesActivas = useMemo(() => {
+    return publicaciones
+      .filter(
+        (reel) =>
+          reel.estado !== EstadoReel.ELIMINADO &&
+          (!usuarioId || reel.canalId === usuarioId)
+      )
+      .sort(
+        (a, b) =>
+          getFechaPublicacionTime(b) - getFechaPublicacionTime(a)
+      );
+  }, [publicaciones, usuarioId]);
 
   const guardarPerfil = useCallback(
     async ({ nombre, descripcion, fotoFile }: GuardarPerfilInput): Promise<boolean> => {
@@ -280,7 +235,17 @@ export function useProfile() {
     router.push("/login");
   }, [logout, router]);
 
-  const desactivarCuenta = useCallback(async (): Promise<boolean> => {
+  const desactivarCuenta = useCallback(async (options?: DesactivarCuentaOptions): Promise<boolean> => {
+    const requiereConfirmacion = options?.confirmar ?? true;
+
+    if (
+      requiereConfirmacion &&
+      typeof window !== "undefined" &&
+      !window.confirm("¿Estas seguro de desactivar tu cuenta?")
+    ) {
+      return false;
+    }
+
     if (!usuarioId) {
       setError("No hay usuario autenticado.");
       return false;
@@ -310,8 +275,6 @@ export function useProfile() {
     perfil,
     publicaciones: publicacionesActivas,
     totalPublicaciones: publicacionesActivas.length,
-    totalLikes,
-    totalComentarios,
 
     loadingPerfil,
     loadingPublicaciones,
