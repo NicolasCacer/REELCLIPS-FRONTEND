@@ -11,6 +11,8 @@ import type {
   ChangeUsernameRequest,
   ChangeUsernameResponse,
   DeleteAccountRequest,
+  GetProfileReelsRequest,
+  GetProfileReelsResponse,
 } from "../model/profile.types";
 
 /**
@@ -21,6 +23,16 @@ export async function getProfileService(
   data: GetProfileRequest
 ): Promise<GetProfileResponse> {
   return apiClient.get<GetProfileResponse>(`/usuarios/${data.id}/perfil`);
+}
+
+/**
+ * GET /api/reels/canal/{canalId}
+ * Lista las publicaciones del canal asociado al perfil.
+ */
+export async function getProfileReelsService(
+  data: GetProfileReelsRequest
+): Promise<GetProfileReelsResponse> {
+  return apiClient.get<GetProfileReelsResponse>(`/reels/canal/${data.canalId}`);
 }
 
 /**

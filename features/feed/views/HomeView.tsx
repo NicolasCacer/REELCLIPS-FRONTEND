@@ -2,6 +2,7 @@
 "use client";
 
 import { useRef } from "react";
+import Image from "next/image";
 
 import { useHomeFeed } from "@/features/feed/controllers/useHomeFeed";
 
@@ -42,6 +43,9 @@ export function HomeView() {
   const comentariosRef =
     useRef<CommentsPanelHandle>(null);
 
+  const mostrarEstadoVacioCategoria =
+    !loadingReels && reels.length === 0;
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
       <CategoryBar
@@ -50,33 +54,57 @@ export function HomeView() {
         onSelect={seleccionarCategoria}
       />
 
-      <div className="flex min-h-0 flex-1 gap-6">
-        <ReelViewer
-          reel={reelActivo}
-          liked={reelLikeado}
-          loading={loadingReels}
-          puedeSubir={reelActivoIndex > 0}
-          puedeBajar={
-            reelActivoIndex < reels.length - 1
-          }
-          onToggleLike={toggleLike}
-          onComentar={() =>
-            comentariosRef.current?.focus()
-          }
-          onAnterior={reelAnterior}
-          onSiguiente={reelSiguiente}
-        />
+      {mostrarEstadoVacioCategoria ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center rounded-3xl border border-dashed border-soft/50 bg-white/80 p-8">
+          <div className="mx-auto flex max-w-md flex-col items-center text-center">
+            <Image
+              src="/empty-category.svg"
+              alt="No hay videos disponibles para esta categoria"
+              width={220}
+              height={160}
+              className="h-auto w-auto"
+            />
 
-        <CommentsPanel
-          ref={comentariosRef}
-          comentarios={comentarios}
-          perfilesComentarios={
-            perfilesComentarios
-          }
-          loading={loadingComentarios}
-          onEnviar={agregarComentario}
-        />
-      </div>
+            <h2 className="mt-5 text-lg font-bold text-primary">
+              {categoriaActiva
+                ? `No hay videos en "${categoriaActiva}"`
+                : "No hay videos disponibles"}
+            </h2>
+
+            <p className="mt-2 text-sm text-secondary">
+              Prueba con otra categoria o vuelve mas tarde para ver nuevo contenido.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 gap-6">
+          <ReelViewer
+            reel={reelActivo}
+            liked={reelLikeado}
+            loading={loadingReels}
+            puedeSubir={reelActivoIndex > 0}
+            puedeBajar={
+              reelActivoIndex < reels.length - 1
+            }
+            onToggleLike={toggleLike}
+            onComentar={() =>
+              comentariosRef.current?.focus()
+            }
+            onAnterior={reelAnterior}
+            onSiguiente={reelSiguiente}
+          />
+
+          <CommentsPanel
+            ref={comentariosRef}
+            comentarios={comentarios}
+            perfilesComentarios={
+              perfilesComentarios
+            }
+            loading={loadingComentarios}
+            onEnviar={agregarComentario}
+          />
+        </div>
+      )}
     </div>
   );
 }

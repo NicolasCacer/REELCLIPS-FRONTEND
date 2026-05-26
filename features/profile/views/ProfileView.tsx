@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, LogOut } from "lucide-react";
 
 import { useProfile } from "@/features/profile/controllers/useProfile";
 import { HomeSidebar } from "@/features/feed/views/components/HomeSidebar";
@@ -23,20 +23,21 @@ export function ProfileView() {
     perfil,
     publicaciones,
     totalPublicaciones,
-    totalLikes,
-    totalComentarios,
     loadingPublicaciones,
     guardando,
+    deletingReelIds,
     error,
     aviso,
     guardarPerfil,
     cambiarUsername,
+    eliminarPublicacion,
     cerrarSesion,
     desactivarCuenta,
     limpiarMensajes,
   } = useProfile();
 
   const [editOpen, setEditOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
@@ -49,20 +50,25 @@ export function ProfileView() {
             perfil={perfil}
             usuario={usuario}
             totalPublicaciones={totalPublicaciones}
-            totalLikes={totalLikes}
-            totalComentarios={totalComentarios}
             onEditar={() => setEditOpen(true)}
-            onCerrarSesion={cerrarSesion}
+            onCerrarSesion={() => setLogoutConfirmOpen(true)}
             onDesactivar={() => setConfirmOpen(true)}
           />
 
           <div className="my-8 h-px bg-soft/40" />
 
-          <PublicationsGrid publicaciones={publicaciones} loading={loadingPublicaciones} />
+          <PublicationsGrid
+            publicaciones={publicaciones}
+            loading={loadingPublicaciones}
+            onDeletePublication={(reelId) =>
+              eliminarPublicacion(reelId, { confirmar: false })
+            }
+            deletingReelIds={deletingReelIds}
+          />
         </div>
       </main>
 
-      {/* Modal de edición */}
+      {/* Modal de edicion */}
       <EditProfileModal
         open={editOpen}
         perfil={perfil}
@@ -76,7 +82,47 @@ export function ProfileView() {
         onLimpiarMensajes={limpiarMensajes}
       />
 
-      {/* Confirmación de desactivación */}
+      {/* Confirmacion de cierre de sesion */}
+      {logoutConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={() => setLogoutConfirmOpen(false)}
+            className="absolute inset-0 cursor-default bg-primary/40 backdrop-blur-sm"
+          />
+          <div className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-light/50 text-primary">
+                <LogOut size={22} />
+              </span>
+              <h2 className="text-lg font-bold text-primary">Cerrar sesion</h2>
+            </div>
+            <p className="text-sm leading-relaxed text-secondary">
+              Se cerrara tu sesion en este dispositivo y volveras a la pantalla
+              de inicio de sesion.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setLogoutConfirmOpen(false)}
+                className="rounded-xl px-4 py-2.5 text-sm font-semibold text-secondary transition-colors hover:bg-light/40"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={cerrarSesion}
+                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-secondary"
+              >
+                Si, cerrar sesion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmacion de desactivacion */}
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
@@ -93,8 +139,8 @@ export function ProfileView() {
               <h2 className="text-lg font-bold text-primary">Desactivar cuenta</h2>
             </div>
             <p className="text-sm leading-relaxed text-secondary">
-              Tu cuenta se desactivará y se cerrará la sesión. Tus reels y mensajes se
-              conservan durante 30 días antes de eliminarse de forma permanente.
+              Tu cuenta se desactivara y se cerrara la sesion. Tus reels y mensajes se
+              conservan durante 30 dias antes de eliminarse de forma permanente.
             </p>
             {error && (
               <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
@@ -111,11 +157,11 @@ export function ProfileView() {
               </button>
               <button
                 type="button"
-                onClick={() => void desactivarCuenta()}
+                onClick={() => void desactivarCuenta({ confirmar: false })}
                 disabled={guardando}
                 className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
               >
-                {guardando ? "Procesando…" : "Sí, desactivar"}
+                {guardando ? "Procesando..." : "Si, desactivar"}
               </button>
             </div>
           </div>

@@ -9,39 +9,41 @@ import { useAuth } from "@/features/auth/controllers/authContext";
 
 import {
   getProfileService,
+  getProfileReelsService,
   updateProfileService,
   uploadProfilePhotoService,
   changeUsernameService,
   deleteAccountService,
 } from "@/features/profile/services/profile.service";
-
-import { getCanalReelsService } from "@/features/feed/services/reel.service";
+import { deleteReelService } from "@/features/feed/services/reel.service";
 
 import type { PerfilInfo, ReelInfo, UsuarioInfo } from "@/shared/types/api.types";
 import { EstadoReel } from "@/shared/types/api.types";
 
 const STORAGE_CANAL_ID = "reelclips_canalId";
 
-type PerfilConCanal = PerfilInfo & { canalId?: number };
-
-function getStoredCanalId(): number | null {
-  if (typeof window === "undefined") return null;
-
-  const raw = window.localStorage.getItem(STORAGE_CANAL_ID);
-  const n = raw ? Number(raw) : NaN;
-
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
 function getMensajeError(e: unknown, fallback: string): string {
   if (e instanceof Error && e.message) return e.message;
   return fallback;
+}
+
+function getFechaPublicacionTime(reel: ReelInfo): number {
+  const fecha = new Date(reel.fechaPublicacion).getTime();
+  return Number.isFinite(fecha) ? fecha : 0;
 }
 
 export type GuardarPerfilInput = {
   nombre: string;
   descripcion: string;
   fotoFile?: File | null;
+};
+
+type DesactivarCuentaOptions = {
+  confirmar?: boolean;
+};
+
+type EliminarPublicacionOptions = {
+  confirmar?: boolean;
 };
 
 export function useProfile() {
@@ -55,6 +57,7 @@ export function useProfile() {
   const [loadingPerfil, setLoadingPerfil] = useState(true);
   const [loadingPublicaciones, setLoadingPublicaciones] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [deletingReelIds, setDeletingReelIds] = useState<Set<number>>(new Set());
 
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -67,22 +70,21 @@ export function useProfile() {
       return;
     }
 
-    setUsuario(user as UsuarioInfo);
-
     let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) setUsuario(user as UsuarioInfo);
+    });
 
     const cargar = async () => {
       setLoadingPerfil(true);
       setLoadingPublicaciones(true);
-
-      let canalId: number | null = getStoredCanalId();
 
       try {
         const p = await getProfileService({ id: usuarioId });
 
         if (!cancelled && p) {
           setPerfil(p);
-          canalId = (p as PerfilConCanal).canalId ?? canalId;
         }
       } catch {
         if (!cancelled && user) {
@@ -99,12 +101,8 @@ export function useProfile() {
       }
 
       try {
-        if (canalId != null) {
-          const reels = await getCanalReelsService(canalId);
-          if (!cancelled) setPublicaciones(Array.isArray(reels) ? reels : []);
-        } else if (!cancelled) {
-          setPublicaciones([]);
-        }
+        const reels = await getProfileReelsService({ canalId: usuarioId });
+        if (!cancelled) setPublicaciones(Array.isArray(reels) ? reels : []);
       } catch {
         if (!cancelled) setPublicaciones([]);
       } finally {
@@ -119,24 +117,18 @@ export function useProfile() {
     };
   }, [usuarioId, user, router]);
 
-  const publicacionesActivas = useMemo(
-    () => publicaciones.filter((r) => r.estado !== EstadoReel.ELIMINADO),
-    [publicaciones]
-  );
-
-  const totalLikes = useMemo(
-    () => publicacionesActivas.reduce((s, r) => s + (r.contadorLikes || 0), 0),
-    [publicacionesActivas]
-  );
-
-  const totalComentarios = useMemo(
-    () =>
-      publicacionesActivas.reduce(
-        (s, r) => s + (r.contadorComentarios || 0),
-        0
-      ),
-    [publicacionesActivas]
-  );
+  const publicacionesActivas = useMemo(() => {
+    return publicaciones
+      .filter(
+        (reel) =>
+          reel.estado !== EstadoReel.ELIMINADO &&
+          (!usuarioId || reel.canalId === usuarioId)
+      )
+      .sort(
+        (a, b) =>
+          getFechaPublicacionTime(b) - getFechaPublicacionTime(a)
+      );
+  }, [publicaciones, usuarioId]);
 
   const guardarPerfil = useCallback(
     async ({ nombre, descripcion, fotoFile }: GuardarPerfilInput): Promise<boolean> => {
@@ -249,7 +241,17 @@ export function useProfile() {
     router.push("/login");
   }, [logout, router]);
 
-  const desactivarCuenta = useCallback(async (): Promise<boolean> => {
+  const desactivarCuenta = useCallback(async (options?: DesactivarCuentaOptions): Promise<boolean> => {
+    const requiereConfirmacion = options?.confirmar ?? true;
+
+    if (
+      requiereConfirmacion &&
+      typeof window !== "undefined" &&
+      !window.confirm("¿Estas seguro de desactivar tu cuenta?")
+    ) {
+      return false;
+    }
+
     if (!usuarioId) {
       setError("No hay usuario autenticado.");
       return false;
@@ -274,22 +276,65 @@ export function useProfile() {
     setAviso(null);
   }, []);
 
+  const eliminarPublicacion = useCallback(
+    async (
+      reelId: number,
+      options?: EliminarPublicacionOptions
+    ): Promise<boolean> => {
+      const requiereConfirmacion = options?.confirmar ?? true;
+
+      if (
+        requiereConfirmacion &&
+        typeof window !== "undefined" &&
+        !window.confirm("¿Seguro que quieres eliminar esta publicación?")
+      ) {
+        return false;
+      }
+
+      if (!usuarioId) {
+        setError("No hay usuario autenticado.");
+        return false;
+      }
+
+      setError(null);
+      setAviso(null);
+      setDeletingReelIds((prev) => new Set(prev).add(reelId));
+
+      try {
+        await deleteReelService(reelId, usuarioId);
+        setPublicaciones((prev) => prev.filter((reel) => reel.id !== reelId));
+        setAviso("Publicacion eliminada");
+        return true;
+      } catch (e) {
+        setError(getMensajeError(e, "No se pudo eliminar la publicacion"));
+        return false;
+      } finally {
+        setDeletingReelIds((prev) => {
+          const next = new Set(prev);
+          next.delete(reelId);
+          return next;
+        });
+      }
+    },
+    [usuarioId]
+  );
+
   return {
     usuario,
     perfil,
     publicaciones: publicacionesActivas,
     totalPublicaciones: publicacionesActivas.length,
-    totalLikes,
-    totalComentarios,
 
     loadingPerfil,
     loadingPublicaciones,
     guardando,
+    deletingReelIds,
     error,
     aviso,
 
     guardarPerfil,
     cambiarUsername,
+    eliminarPublicacion,
     cerrarSesion,
     desactivarCuenta,
     limpiarMensajes,
