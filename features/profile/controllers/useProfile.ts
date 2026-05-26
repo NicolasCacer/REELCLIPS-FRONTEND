@@ -15,6 +15,7 @@ import {
   changeUsernameService,
   deleteAccountService,
 } from "@/features/profile/services/profile.service";
+import { deleteReelService } from "@/features/feed/services/reel.service";
 
 import type { PerfilInfo, ReelInfo, UsuarioInfo } from "@/shared/types/api.types";
 import { EstadoReel } from "@/shared/types/api.types";
@@ -41,6 +42,10 @@ type DesactivarCuentaOptions = {
   confirmar?: boolean;
 };
 
+type EliminarPublicacionOptions = {
+  confirmar?: boolean;
+};
+
 export function useProfile() {
   const router = useRouter();
   const { user, setUser, logout } = useAuth();
@@ -52,6 +57,7 @@ export function useProfile() {
   const [loadingPerfil, setLoadingPerfil] = useState(true);
   const [loadingPublicaciones, setLoadingPublicaciones] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [deletingReelIds, setDeletingReelIds] = useState<Set<number>>(new Set());
 
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -270,6 +276,49 @@ export function useProfile() {
     setAviso(null);
   }, []);
 
+  const eliminarPublicacion = useCallback(
+    async (
+      reelId: number,
+      options?: EliminarPublicacionOptions
+    ): Promise<boolean> => {
+      const requiereConfirmacion = options?.confirmar ?? true;
+
+      if (
+        requiereConfirmacion &&
+        typeof window !== "undefined" &&
+        !window.confirm("¿Seguro que quieres eliminar esta publicación?")
+      ) {
+        return false;
+      }
+
+      if (!usuarioId) {
+        setError("No hay usuario autenticado.");
+        return false;
+      }
+
+      setError(null);
+      setAviso(null);
+      setDeletingReelIds((prev) => new Set(prev).add(reelId));
+
+      try {
+        await deleteReelService(reelId, usuarioId);
+        setPublicaciones((prev) => prev.filter((reel) => reel.id !== reelId));
+        setAviso("Publicacion eliminada");
+        return true;
+      } catch (e) {
+        setError(getMensajeError(e, "No se pudo eliminar la publicacion"));
+        return false;
+      } finally {
+        setDeletingReelIds((prev) => {
+          const next = new Set(prev);
+          next.delete(reelId);
+          return next;
+        });
+      }
+    },
+    [usuarioId]
+  );
+
   return {
     usuario,
     perfil,
@@ -279,11 +328,13 @@ export function useProfile() {
     loadingPerfil,
     loadingPublicaciones,
     guardando,
+    deletingReelIds,
     error,
     aviso,
 
     guardarPerfil,
     cambiarUsername,
+    eliminarPublicacion,
     cerrarSesion,
     desactivarCuenta,
     limpiarMensajes,
