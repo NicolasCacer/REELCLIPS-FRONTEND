@@ -9,33 +9,26 @@ import { useAuth } from "@/features/auth/controllers/authContext";
 
 import {
   getProfileService,
+  getProfileReelsService,
   updateProfileService,
   uploadProfilePhotoService,
   changeUsernameService,
   deleteAccountService,
 } from "@/features/profile/services/profile.service";
 
-import { getCanalReelsService } from "@/features/feed/services/reel.service";
-
 import type { PerfilInfo, ReelInfo, UsuarioInfo } from "@/shared/types/api.types";
 import { EstadoReel } from "@/shared/types/api.types";
 
 const STORAGE_CANAL_ID = "reelclips_canalId";
 
-type PerfilConCanal = PerfilInfo & { canalId?: number };
-
-function getStoredCanalId(): number | null {
-  if (typeof window === "undefined") return null;
-
-  const raw = window.localStorage.getItem(STORAGE_CANAL_ID);
-  const n = raw ? Number(raw) : NaN;
-
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
 function getMensajeError(e: unknown, fallback: string): string {
   if (e instanceof Error && e.message) return e.message;
   return fallback;
+}
+
+function getFechaPublicacionTime(reel: ReelInfo): number {
+  const fecha = new Date(reel.fechaPublicacion).getTime();
+  return Number.isFinite(fecha) ? fecha : 0;
 }
 
 export type GuardarPerfilInput = {
@@ -67,22 +60,21 @@ export function useProfile() {
       return;
     }
 
-    setUsuario(user as UsuarioInfo);
-
     let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) setUsuario(user as UsuarioInfo);
+    });
 
     const cargar = async () => {
       setLoadingPerfil(true);
       setLoadingPublicaciones(true);
-
-      let canalId: number | null = getStoredCanalId();
 
       try {
         const p = await getProfileService({ id: usuarioId });
 
         if (!cancelled && p) {
           setPerfil(p);
-          canalId = (p as PerfilConCanal).canalId ?? canalId;
         }
       } catch {
         if (!cancelled && user) {
@@ -99,12 +91,8 @@ export function useProfile() {
       }
 
       try {
-        if (canalId != null) {
-          const reels = await getCanalReelsService(canalId);
-          if (!cancelled) setPublicaciones(Array.isArray(reels) ? reels : []);
-        } else if (!cancelled) {
-          setPublicaciones([]);
-        }
+        const reels = await getProfileReelsService({ canalId: usuarioId });
+        if (!cancelled) setPublicaciones(Array.isArray(reels) ? reels : []);
       } catch {
         if (!cancelled) setPublicaciones([]);
       } finally {
@@ -119,24 +107,18 @@ export function useProfile() {
     };
   }, [usuarioId, user, router]);
 
-  const publicacionesActivas = useMemo(
-    () => publicaciones.filter((r) => r.estado !== EstadoReel.ELIMINADO),
-    [publicaciones]
-  );
-
-  const totalLikes = useMemo(
-    () => publicacionesActivas.reduce((s, r) => s + (r.contadorLikes || 0), 0),
-    [publicacionesActivas]
-  );
-
-  const totalComentarios = useMemo(
-    () =>
-      publicacionesActivas.reduce(
-        (s, r) => s + (r.contadorComentarios || 0),
-        0
-      ),
-    [publicacionesActivas]
-  );
+  const publicacionesActivas = useMemo(() => {
+    return publicaciones
+      .filter(
+        (reel) =>
+          reel.estado !== EstadoReel.ELIMINADO &&
+          (!usuarioId || reel.canalId === usuarioId)
+      )
+      .sort(
+        (a, b) =>
+          getFechaPublicacionTime(b) - getFechaPublicacionTime(a)
+      );
+  }, [publicaciones, usuarioId]);
 
   const guardarPerfil = useCallback(
     async ({ nombre, descripcion, fotoFile }: GuardarPerfilInput): Promise<boolean> => {
@@ -279,8 +261,6 @@ export function useProfile() {
     perfil,
     publicaciones: publicacionesActivas,
     totalPublicaciones: publicacionesActivas.length,
-    totalLikes,
-    totalComentarios,
 
     loadingPerfil,
     loadingPublicaciones,

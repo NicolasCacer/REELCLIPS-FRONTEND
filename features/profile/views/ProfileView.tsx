@@ -23,8 +23,6 @@ export function ProfileView() {
     perfil,
     publicaciones,
     totalPublicaciones,
-    totalLikes,
-    totalComentarios,
     loadingPublicaciones,
     guardando,
     error,
@@ -49,8 +47,6 @@ export function ProfileView() {
             perfil={perfil}
             usuario={usuario}
             totalPublicaciones={totalPublicaciones}
-            totalLikes={totalLikes}
-            totalComentarios={totalComentarios}
             onEditar={() => setEditOpen(true)}
             onCerrarSesion={cerrarSesion}
             onDesactivar={() => setConfirmOpen(true)}
