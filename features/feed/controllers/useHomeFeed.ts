@@ -107,6 +107,29 @@ const FALLBACK_COMMENTS: ComentarioDetalle[] = [
   },
 ];
 
+function seededRandom(seed: number): () => number {
+  let t = seed >>> 0;
+
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleBySeed<T>(items: T[], seed: number): T[] {
+  const shuffled = [...items];
+  const random = seededRandom(seed);
+
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled;
+}
+
 export type HomeContacto = {
   id: number;
   nombre: string;
@@ -114,7 +137,7 @@ export type HomeContacto = {
 };
 
 export function useHomeFeed() {
-  const { user } = useAuth();
+  const { user, feedSeed } = useAuth();
 
   const [usuario, setUsuario] =
     useState<UsuarioInfo | null>(null);
@@ -299,15 +322,19 @@ export function useHomeFeed() {
         const feed = await getFeedService({
           usuarioId: uid,
           pagina: 0,
+          seed: feedSeed,
         });
 
         const lista = feed?.reels ?? [];
 
         if (!cancelled) {
-          setReels(
+          const listaOrdenada =
             lista.length > 0
-              ? lista
-              : FALLBACK_REELS
+              ? shuffleBySeed(lista, feedSeed)
+              : FALLBACK_REELS;
+
+          setReels(
+            listaOrdenada
           );
         }
       } catch {
@@ -316,10 +343,13 @@ export function useHomeFeed() {
             await getAllReelsService();
 
           if (!cancelled) {
-            setReels(
+            const todosOrdenados =
               todos.length > 0
-                ? todos
-                : FALLBACK_REELS
+                ? shuffleBySeed(todos, feedSeed)
+                : FALLBACK_REELS;
+
+            setReels(
+              todosOrdenados
             );
           }
         } catch {
@@ -339,7 +369,7 @@ export function useHomeFeed() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, feedSeed]);
 
   /**
    * RECARGAR COMENTARIOS

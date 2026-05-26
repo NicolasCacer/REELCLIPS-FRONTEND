@@ -20,7 +20,8 @@ export async function getFeedService(
   const queryString = ApiClient.buildQueryString({
     usuarioId: params.usuarioId,
     categorias: params.categorias,
-    pagina: params.pagina || 0,
+    pagina: params.pagina ?? 0,
+    seed: params.seed,
   });
 
   return apiClient.get<GetFeedResponse>(`/feed${queryString}`);

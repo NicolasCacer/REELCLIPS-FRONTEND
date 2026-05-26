@@ -10,7 +10,7 @@ import { useAuth } from "./authContext";
 
 export function useLoginController() {
   const router = useRouter();
-  const { setUser } = useAuth();
+  const { setUser, rotateFeedSeed } = useAuth();
 
   const [form, setForm] = useState<LoginRequest>({
     email: "",
@@ -20,19 +20,24 @@ export function useLoginController() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (field: keyof LoginRequest, value: string) => {
+  const handleChange = (
+    field: keyof LoginRequest,
+    value: string
+  ) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
     setError("");
 
     if (!form.email || !form.password) {
-      setError("Debes ingresar correo y contraseña.");
+      setError("Debes ingresar correo y contrasena.");
       return;
     }
 
@@ -41,15 +46,18 @@ export function useLoginController() {
 
       const usuario = await loginService(form);
 
-    setUser({
-      id: usuario.id,
-      username: usuario.username,
-      nombreVisualizacion: usuario.nombreVisualizacion ?? undefined,
-      fotoPerfil: usuario.fotoPerfil ?? undefined,
-    });
+      rotateFeedSeed();
+      setUser({
+        id: usuario.id,
+        username: usuario.username,
+        nombreVisualizacion:
+          usuario.nombreVisualizacion ?? undefined,
+        fotoPerfil: usuario.fotoPerfil ?? undefined,
+      });
+
       router.push("/home");
     } catch {
-      setError("Correo o contraseña incorrectos.");
+      setError("Correo o contrasena incorrectos.");
     } finally {
       setIsLoading(false);
     }
