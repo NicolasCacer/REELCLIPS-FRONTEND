@@ -3,6 +3,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/features/auth/controllers/authContext";
 import {
   getFeedService,
   getAllCategoriesService,
@@ -10,16 +11,26 @@ import {
   filterCategoriesService,
 } from "../services/feed.service";
 import type { GetFeedRequest } from "../model/feed.types";
-import type { ReelInfo, CategoriaInfo } from "@/shared/types/api.types";
+import type {
+  ReelInfo,
+  CategoriaInfo,
+} from "@/shared/types/api.types";
 
 interface UseFeedControllerProps {
   userId: number;
 }
 
-export function useFeedController({ userId }: UseFeedControllerProps) {
+export function useFeedController({
+  userId,
+}: UseFeedControllerProps) {
+  const { feedSeed } = useAuth();
+
   const [reels, setReels] = useState<ReelInfo[]>([]);
-  const [categories, setCategories] = useState<CategoriaInfo[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<
+    CategoriaInfo[]
+  >([]);
+  const [selectedCategories, setSelectedCategories] =
+    useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -34,8 +45,9 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
 
         const request: GetFeedRequest = {
           usuarioId: userId,
-          categorias: categoriesFilter || selectedCategories,
+          categorias: categoriesFilter ?? selectedCategories,
           pagina: page,
+          seed: feedSeed,
         };
 
         const feedResponse = await getFeedService(request);
@@ -43,7 +55,10 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
         if (page === 0) {
           setReels(feedResponse.reels);
         } else {
-          setReels((prev) => [...prev, ...feedResponse.reels]);
+          setReels((prev) => [
+            ...prev,
+            ...feedResponse.reels,
+          ]);
         }
 
         setCurrentPage(feedResponse.paginaActual);
@@ -56,7 +71,7 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
         setIsLoading(false);
       }
     },
-    [userId, selectedCategories]
+    [userId, selectedCategories, feedSeed]
   );
 
   const loadCategories = useCallback(async () => {
@@ -64,19 +79,22 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
       const cats = await getAllCategoriesService();
       setCategories(cats);
     } catch (err) {
-      console.error("Error cargando categorías:", err);
+      console.error("Error cargando categorias:", err);
     }
   }, []);
 
-  const loadCategoryDetails = useCallback(async (categoryId: number) => {
-    try {
-      const category = await getCategoryService(categoryId);
-      return category;
-    } catch (err) {
-      console.error("Error cargando categoría:", err);
-      return null;
-    }
-  }, []);
+  const loadCategoryDetails = useCallback(
+    async (categoryId: number) => {
+      try {
+        const category = await getCategoryService(categoryId);
+        return category;
+      } catch (err) {
+        console.error("Error cargando categoria:", err);
+        return null;
+      }
+    },
+    []
+  );
 
   const handleFilterCategories = useCallback(
     async (categoryNames: string[]) => {
@@ -84,13 +102,14 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
         setIsLoading(true);
         setError("");
 
-        const filteredCategories = await filterCategoriesService(categoryNames);
+        const filteredCategories =
+          await filterCategoriesService(categoryNames);
         setCategories(filteredCategories);
 
         setCurrentPage(0);
         await loadFeed(0, categoryNames);
       } catch (err) {
-        setError("No se pudo filtrar categorías.");
+        setError("No se pudo filtrar categorias.");
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -99,13 +118,16 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
     [loadFeed]
   );
 
-  const handleSelectCategory = (categoryName: string, isSelected: boolean) => {
+  const handleSelectCategory = (
+    categoryName: string,
+    isSelected: boolean
+  ) => {
     setSelectedCategories((prev) => {
       const updated = isSelected
         ? [...prev, categoryName]
         : prev.filter((c) => c !== categoryName);
 
-      loadFeed(0, updated);
+      void loadFeed(0, updated);
       return updated;
     });
   };
@@ -114,7 +136,13 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
     if (hasMore && !isLoading) {
       await loadFeed(currentPage + 1, selectedCategories);
     }
-  }, [currentPage, hasMore, isLoading, selectedCategories, loadFeed]);
+  }, [
+    currentPage,
+    hasMore,
+    isLoading,
+    selectedCategories,
+    loadFeed,
+  ]);
 
   const refreshFeed = useCallback(async () => {
     setCurrentPage(0);
@@ -123,8 +151,8 @@ export function useFeedController({ userId }: UseFeedControllerProps) {
   }, [loadFeed]);
 
   useEffect(() => {
-    loadCategories();
-    loadFeed(0, []);
+    void loadCategories();
+    void loadFeed(0, []);
   }, [loadCategories, loadFeed]);
 
   return {

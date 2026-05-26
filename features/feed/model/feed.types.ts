@@ -7,6 +7,7 @@ export type GetFeedRequest = {
   usuarioId: number;
   categorias?: string[];
   pagina?: number;
+  seed?: number;
 };
 
 export type GetCategoriesRequest = {
