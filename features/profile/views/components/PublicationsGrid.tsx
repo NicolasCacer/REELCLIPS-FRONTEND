@@ -2,7 +2,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Heart, Images, MessageCircle, Play } from "lucide-react";
+import { Heart, Images, MessageCircle, Trash2 } from "lucide-react";
 
 import type { ReelInfo } from "@/shared/types/api.types";
 import { ReelModal } from "@/features/feed/views/components/ReelModal";
@@ -10,20 +10,28 @@ import { ReelModal } from "@/features/feed/views/components/ReelModal";
 type PublicationsGridProps = {
   publicaciones: ReelInfo[];
   loading: boolean;
+  deletingReelIds: Set<number>;
+  onDeletePublication: (reelId: number) => Promise<boolean>;
 };
 
 function getMediaUrl(url: string | null | undefined): string | null {
   return url ? encodeURI(url) : null;
 }
 
+type PublicationTileProps = {
+  reel: ReelInfo;
+  isDeleting: boolean;
+  onDeletePublication: (reelId: number) => Promise<boolean>;
+};
+
 function PublicationTile({
   reel,
-  onOpen,
-}: {
-  reel: ReelInfo;
-  onOpen: () => void;
-}) {
+  isDeleting,
+  onDeletePublication,
+}: PublicationTileProps) {
   const playPromiseRef = useRef<Promise<void> | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const miniaturaUrl = getMediaUrl(reel.urlMiniatura);
   const videoUrl = getMediaUrl(reel.urlVideo);
@@ -57,65 +65,115 @@ function PublicationTile({
     resetVideo(video);
   };
 
+  const handleConfirmDelete = async () => {
+    const deleted = await onDeletePublication(reel.id);
+    if (deleted) {
+      setConfirmDeleteOpen(false);
+    }
+  };
+
+  const onOpen = () => setModalOpen(true);
+  const onClose = () => setModalOpen(false);
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpen();
-        }
-      }}
-      aria-label={`Abrir publicación: ${reel.descripcion ?? "reel"}`}
-      className="group relative aspect-square cursor-pointer overflow-hidden rounded-lg bg-primary outline-none focus-visible:ring-2 focus-visible:ring-accent"
-    >
-      {miniaturaUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={miniaturaUrl}
-          alt={reel.descripcion ?? "publicacion"}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-      ) : videoUrl ? (
-        <video
-          src={videoUrl}
-          muted
-          playsInline
-          preload="metadata"
-          onMouseEnter={(event) => {
-            handlePreviewStart(event.currentTarget);
-          }}
-          onMouseLeave={(event) => {
-            handlePreviewEnd(event.currentTarget);
-          }}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-secondary via-primary to-primary" />
-      )}
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpen();
+          }
+        }}
+        aria-label={`Abrir publicación: ${reel.descripcion ?? "reel"}`}
+        className="group relative aspect-square cursor-pointer overflow-hidden rounded-lg bg-primary outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        {miniaturaUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={miniaturaUrl}
+            alt={reel.descripcion ?? "publicacion"}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : videoUrl ? (
+          <video
+            src={videoUrl}
+            muted
+            playsInline
+            preload="metadata"
+            onMouseEnter={(event) => {
+              handlePreviewStart(event.currentTarget);
+            }}
+            onMouseLeave={(event) => {
+              handlePreviewEnd(event.currentTarget);
+            }}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary via-primary to-primary" />
+        )}
 
-      <span className="absolute right-2 top-2 text-white/90 drop-shadow">
-        <Play size={16} fill="currentColor" />
-      </span>
+        <div className="absolute right-2 top-2 z-20">
+          {confirmDeleteOpen ? (
+            <div className="min-w-36 rounded-xl border border-red-200 bg-white/95 p-2 shadow-lg backdrop-blur">
+              <p className="mb-2 text-center text-xs font-semibold text-primary">
+                Eliminar publicacion?
+              </p>
+              <div className="flex items-center justify-end gap-1.5">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setConfirmDeleteOpen(false)}
+                  className="rounded-md px-2 py-1 text-xs font-semibold text-secondary transition hover:bg-light/40 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => void handleConfirmDelete()}
+                  className="rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isDeleting ? "..." : "Eliminar"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              aria-label="Eliminar publicacion"
+              title="Eliminar publicacion"
+              disabled={isDeleting}
+              onClick={() => setConfirmDeleteOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600/90 text-white shadow-md transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
 
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-4 bg-gradient-to-t from-primary/85 via-primary/45 to-transparent px-2 pb-3 pt-8 transition-colors duration-200 group-hover:from-primary/95">
-        <span className="flex items-center gap-1.5 text-sm font-semibold text-white drop-shadow">
-          <Heart size={17} fill="currentColor" /> {reel.contadorLikes ?? 0}
-        </span>
-        <span className="flex items-center gap-1.5 text-sm font-semibold text-white drop-shadow">
-          <MessageCircle size={17} fill="currentColor" />{" "}
-          {reel.contadorComentarios ?? 0}
-        </span>
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-4 bg-gradient-to-t from-primary/85 via-primary/45 to-transparent px-2 pb-3 pt-8 transition-colors duration-200 group-hover:from-primary/95">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-white drop-shadow">
+            <Heart size={17} fill="currentColor" /> {reel.contadorLikes ?? 0}
+          </span>
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-white drop-shadow">
+            <MessageCircle size={17} fill="currentColor" />{" "}
+            {reel.contadorComentarios ?? 0}
+          </span>
+        </div>
       </div>
-    </div>
+      {modalOpen && <ReelModal reels={[reel]} startIndex={0} onClose={onClose} />}
+    </>
   );
 }
 
 export function PublicationsGrid({
   publicaciones,
   loading,
+  deletingReelIds,
+  onDeletePublication,
 }: PublicationsGridProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
@@ -149,24 +207,15 @@ export function PublicationsGrid({
   }
 
   return (
-    <>
-      <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
-        {publicaciones.map((reel, index) => (
-          <PublicationTile
-            key={reel.id}
-            reel={reel}
-            onOpen={() => setActiveIndex(index)}
-          />
-        ))}
-      </div>
-
-      {activeIndex !== null && (
-        <ReelModal
-          reels={publicaciones}
-          startIndex={activeIndex}
-          onClose={() => setActiveIndex(null)}
+    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+      {publicaciones.map((reel) => (
+        <PublicationTile
+          key={reel.id}
+          reel={reel}
+          isDeleting={deletingReelIds.has(reel.id)}
+          onDeletePublication={onDeletePublication}
         />
-      )}
-    </>
+      ))}
+    </div>
   );
 }
