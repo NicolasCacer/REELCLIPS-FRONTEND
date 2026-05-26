@@ -37,6 +37,10 @@ export type GuardarPerfilInput = {
   fotoFile?: File | null;
 };
 
+type DesactivarCuentaOptions = {
+  confirmar?: boolean;
+};
+
 export function useProfile() {
   const router = useRouter();
   const { user, setUser, logout } = useAuth();
@@ -231,7 +235,17 @@ export function useProfile() {
     router.push("/login");
   }, [logout, router]);
 
-  const desactivarCuenta = useCallback(async (): Promise<boolean> => {
+  const desactivarCuenta = useCallback(async (options?: DesactivarCuentaOptions): Promise<boolean> => {
+    const requiereConfirmacion = options?.confirmar ?? true;
+
+    if (
+      requiereConfirmacion &&
+      typeof window !== "undefined" &&
+      !window.confirm("¿Estas seguro de desactivar tu cuenta?")
+    ) {
+      return false;
+    }
+
     if (!usuarioId) {
       setError("No hay usuario autenticado.");
       return false;
