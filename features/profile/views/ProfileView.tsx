@@ -107,7 +107,7 @@ export function ProfileView() {
               </button>
               <button
                 type="button"
-                onClick={() => void desactivarCuenta()}
+                onClick={() => void desactivarCuenta({ confirmar: false })}
                 disabled={guardando}
                 className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
               >
