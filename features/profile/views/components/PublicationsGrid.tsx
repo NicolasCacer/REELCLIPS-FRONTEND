@@ -194,4 +194,4 @@ function ReelModal({
     </div>
   );
 }
-// ===== 👆 fin del nuevo componente 👆 =====
+// ===== 👆 fin del nuevo componente 👆 =====c
