@@ -15,7 +15,12 @@ import {
   deleteAccountService,
 } from "@/features/profile/services/profile.service";
 
-import { getCanalReelsService } from "@/features/feed/services/reel.service";
+// ===== 👇 CAMBIO 1 (import) 👇 =====
+import {
+  getCanalReelsService,
+  getAllReelsService,
+} from "@/features/feed/services/reel.service";
+// ===== 👆 fin del cambio 1 👆 =====
 
 import type { PerfilInfo, ReelInfo, UsuarioInfo } from "@/shared/types/api.types";
 import { EstadoReel } from "@/shared/types/api.types";
@@ -75,6 +80,7 @@ export function useProfile() {
       setLoadingPerfil(true);
       setLoadingPublicaciones(true);
 
+      // canalId: primero el guardado (al publicar), luego el que traiga el perfil
       let canalId: number | null = getStoredCanalId();
 
       try {
@@ -82,7 +88,11 @@ export function useProfile() {
 
         if (!cancelled && p) {
           setPerfil(p);
-          canalId = (p as PerfilConCanal).canalId ?? canalId;
+
+          const canalDelPerfil = (p as PerfilConCanal).canalId;
+          if (canalDelPerfil != null) {
+            canalId = canalDelPerfil;
+          }
         }
       } catch {
         if (!cancelled && user) {
@@ -98,18 +108,39 @@ export function useProfile() {
         if (!cancelled) setLoadingPerfil(false);
       }
 
+      // ===== 👇 CAMBIO 2 (carga de reels con plan B por el error 500) 👇 =====
+      // Persistimos el canalId si lo conocemos
+      if (canalId != null && typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_CANAL_ID, String(canalId));
+      }
+
       try {
         if (canalId != null) {
-          const reels = await getCanalReelsService(canalId);
+          let reels: ReelInfo[] = [];
+
+          try {
+            // 1º intento: endpoint del canal
+            reels = await getCanalReelsService(canalId);
+          } catch {
+            // El endpoint /api/reels/canal/{id} está dando 500 en el backend.
+            // Plan B: traemos todos los reels y filtramos por canalId.
+            const todos = await getAllReelsService();
+            reels = Array.isArray(todos)
+              ? todos.filter((r) => r.canalId === canalId)
+              : [];
+          }
+
           if (!cancelled) setPublicaciones(Array.isArray(reels) ? reels : []);
-        } else if (!cancelled) {
-          setPublicaciones([]);
+        } else {
+          console.warn("[Perfil] No hay canalId guardado.");
+          if (!cancelled) setPublicaciones([]);
         }
       } catch {
         if (!cancelled) setPublicaciones([]);
       } finally {
         if (!cancelled) setLoadingPublicaciones(false);
       }
+      // ===== 👆 fin del cambio 2 👆 =====
     };
 
     void cargar();
