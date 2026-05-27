@@ -29,6 +29,7 @@ type ReelViewerProps = {
   puedeBajar: boolean;
   onToggleLike: () => void;
   onComentar: () => void;
+  onVerPerfil?: (usuarioId: number) => void;
   onAnterior: () => void;
   onSiguiente: () => void;
 };
@@ -42,6 +43,7 @@ export function ReelViewer({
   puedeBajar,
   onToggleLike,
   onComentar,
+  onVerPerfil,
   onAnterior,
   onSiguiente,
 }: ReelViewerProps) {
@@ -59,6 +61,8 @@ export function ReelViewer({
     null;
   const categoriaPrincipal = reel?.categorias?.[0];
   const categoriasRestantes = reel?.categorias?.slice(1, 3) ?? [];
+  const puedeAbrirPerfil =
+    Boolean(onVerPerfil) && Boolean(reel?.canalId && reel.canalId > 0);
 
   const togglePlayPause = () => {
     if (!videoRef.current) return;
@@ -186,20 +190,41 @@ export function ReelViewer({
             {/* Contenido izquierdo */}
             <div className="flex min-w-0 flex-1 items-start gap-3">
               {nombrePublicador ? (
-                <Avatar
-                  nombre={nombrePublicador}
-                  src={perfilPublicador?.fotoPerfil}
-                  size={42}
-                  className="ring-white/70"
-                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (reel?.canalId) {
+                      onVerPerfil?.(reel.canalId);
+                    }
+                  }}
+                  disabled={!puedeAbrirPerfil}
+                  aria-label={`Ver perfil de ${nombrePublicador}`}
+                  className="rounded-full transition hover:scale-105 disabled:cursor-default disabled:hover:scale-100"
+                >
+                  <Avatar
+                    nombre={nombrePublicador}
+                    src={perfilPublicador?.fotoPerfil}
+                    size={42}
+                    className="ring-white/70"
+                  />
+                </button>
               ) : null}
 
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   {nombrePublicador ? (
-                    <p className="truncate text-sm font-bold text-white">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (reel?.canalId) {
+                          onVerPerfil?.(reel.canalId);
+                        }
+                      }}
+                      disabled={!puedeAbrirPerfil}
+                      className="min-w-0 truncate text-left text-sm font-bold text-white transition hover:text-light disabled:cursor-default disabled:hover:text-white"
+                    >
                       {nombrePublicador}
-                    </p>
+                    </button>
                   ) : null}
 
                   {categoriaPrincipal ? (
