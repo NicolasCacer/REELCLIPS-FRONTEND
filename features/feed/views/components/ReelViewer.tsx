@@ -13,28 +13,37 @@ import {
 
 import { useRef, useState, useEffect } from "react";
 
-import type { ReelInfo } from "@/shared/types/api.types";
+import { Avatar } from "@/features/feed/views/components/Avatar";
+
+import type {
+  PerfilInfo,
+  ReelInfo,
+} from "@/shared/types/api.types";
 
 type ReelViewerProps = {
   reel: ReelInfo | null;
+  perfilPublicador?: PerfilInfo | null;
   liked: boolean;
   loading: boolean;
   puedeSubir: boolean;
   puedeBajar: boolean;
   onToggleLike: () => void;
   onComentar: () => void;
+  onVerPerfil?: (usuarioId: number) => void;
   onAnterior: () => void;
   onSiguiente: () => void;
 };
 
 export function ReelViewer({
   reel,
+  perfilPublicador,
   liked,
   loading,
   puedeSubir,
   puedeBajar,
   onToggleLike,
   onComentar,
+  onVerPerfil,
   onAnterior,
   onSiguiente,
 }: ReelViewerProps) {
@@ -45,6 +54,15 @@ export function ReelViewer({
     useState(false);
   const hideButtonTimeoutRef =
     useRef<NodeJS.Timeout | null>(null);
+  const descripcion = reel?.descripcion?.trim();
+  const nombrePublicador =
+    perfilPublicador?.nombreVisualizacion ||
+    perfilPublicador?.username ||
+    null;
+  const categoriaPrincipal = reel?.categorias?.[0];
+  const categoriasRestantes = reel?.categorias?.slice(1, 3) ?? [];
+  const puedeAbrirPerfil =
+    Boolean(onVerPerfil) && Boolean(reel?.canalId && reel.canalId > 0);
 
   const togglePlayPause = () => {
     if (!videoRef.current) return;
@@ -170,23 +188,71 @@ export function ReelViewer({
           {/* Información del reel */}
           <div className="absolute inset-x-0 bottom-0 flex items-end gap-3 p-5">
             {/* Contenido izquierdo */}
-            <div className="flex-1">
-              <p className="line-clamp-3 text-sm font-medium leading-relaxed text-white/95">
-                {reel?.descripcion ?? "Sin descripción"}
-              </p>
-
-              {reel?.categorias?.length ? (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {reel.categorias.slice(0, 3).map((c) => (
-                    <span
-                      key={c}
-                      className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm"
-                    >
-                      #{c}
-                    </span>
-                  ))}
-                </div>
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              {nombrePublicador ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (reel?.canalId) {
+                      onVerPerfil?.(reel.canalId);
+                    }
+                  }}
+                  disabled={!puedeAbrirPerfil}
+                  aria-label={`Ver perfil de ${nombrePublicador}`}
+                  className="rounded-full transition hover:scale-105 disabled:cursor-default disabled:hover:scale-100"
+                >
+                  <Avatar
+                    nombre={nombrePublicador}
+                    src={perfilPublicador?.fotoPerfil}
+                    size={42}
+                    className="ring-white/70"
+                  />
+                </button>
               ) : null}
+
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  {nombrePublicador ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (reel?.canalId) {
+                          onVerPerfil?.(reel.canalId);
+                        }
+                      }}
+                      disabled={!puedeAbrirPerfil}
+                      className="min-w-0 truncate text-left text-sm font-bold text-white transition hover:text-light disabled:cursor-default disabled:hover:text-white"
+                    >
+                      {nombrePublicador}
+                    </button>
+                  ) : null}
+
+                  {categoriaPrincipal ? (
+                    <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
+                      #{categoriaPrincipal}
+                    </span>
+                  ) : null}
+                </div>
+
+                {descripcion ? (
+                  <p className="mt-1 line-clamp-3 text-sm font-medium leading-relaxed text-white/95">
+                    {descripcion}
+                  </p>
+                ) : null}
+
+                {categoriasRestantes.length ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {categoriasRestantes.map((c) => (
+                      <span
+                        key={c}
+                        className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm"
+                      >
+                        #{c}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             {/* Botón Like - Alineado a la derecha */}

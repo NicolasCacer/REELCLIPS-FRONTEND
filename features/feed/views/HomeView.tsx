@@ -5,9 +5,11 @@ import { useRef } from "react";
 import Image from "next/image";
 
 import { useHomeFeed } from "@/features/feed/controllers/useHomeFeed";
+import { usePublicProfileModal } from "@/features/feed/controllers/usePublicProfileModal";
 
 import { CategoryBar } from "./components/CategoryBar";
 import { ReelViewer } from "./components/ReelViewer";
+import { PublicProfileModal } from "./components/PublicProfileModal";
 
 import {
   CommentsPanel,
@@ -25,6 +27,7 @@ export function HomeView() {
 
     comentarios,
     perfilesComentarios,
+    perfilPublicadorActivo,
 
     reelLikeado,
 
@@ -39,6 +42,8 @@ export function HomeView() {
     toggleLike,
     agregarComentario,
   } = useHomeFeed();
+
+  const perfilPublico = usePublicProfileModal();
 
   const comentariosRef =
     useRef<CommentsPanelHandle>(null);
@@ -80,6 +85,7 @@ export function HomeView() {
         <div className="flex min-h-0 flex-1 gap-6">
           <ReelViewer
             reel={reelActivo}
+            perfilPublicador={perfilPublicadorActivo}
             liked={reelLikeado}
             loading={loadingReels}
             puedeSubir={reelActivoIndex > 0}
@@ -90,6 +96,7 @@ export function HomeView() {
             onComentar={() =>
               comentariosRef.current?.focus()
             }
+            onVerPerfil={perfilPublico.abrirPerfil}
             onAnterior={reelAnterior}
             onSiguiente={reelSiguiente}
           />
@@ -102,9 +109,27 @@ export function HomeView() {
             }
             loading={loadingComentarios}
             onEnviar={agregarComentario}
+            onVerPerfil={perfilPublico.abrirPerfil}
           />
         </div>
       )}
+
+      {perfilPublico.open ? (
+        <PublicProfileModal
+          perfil={perfilPublico.perfil}
+          totalPublicaciones={
+            perfilPublico.totalPublicaciones
+          }
+          loading={perfilPublico.loading}
+          creandoConversacion={
+            perfilPublico.creandoConversacion
+          }
+          error={perfilPublico.error}
+          mensajeError={perfilPublico.mensajeError}
+          onClose={perfilPublico.cerrarPerfil}
+          onEnviarMensaje={perfilPublico.enviarMensaje}
+        />
+      ) : null}
     </div>
   );
 }

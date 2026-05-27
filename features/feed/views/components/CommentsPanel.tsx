@@ -36,6 +36,10 @@ type CommentsPanelProps = {
   onEnviar: (
     contenido: string
   ) => Promise<void>;
+
+  onVerPerfil?: (
+    usuarioId: number
+  ) => void;
 };
 
 export const CommentsPanel = forwardRef<
@@ -47,6 +51,7 @@ export const CommentsPanel = forwardRef<
     perfilesComentarios,
     loading,
     onEnviar,
+    onVerPerfil,
   },
   ref
 ) {
@@ -204,6 +209,10 @@ export const CommentsPanel = forwardRef<
                 comentario.contenido?.trim() ||
                 "Comentario pendiente.";
 
+              const puedeAbrirPerfil =
+                Boolean(onVerPerfil) &&
+                comentario.usuarioId > 0;
+
               return (
                 <div
                   key={
@@ -211,21 +220,46 @@ export const CommentsPanel = forwardRef<
                   }
                   className="flex items-start gap-3"
                 >
-                  <Avatar
-                    nombre={nombre}
-                    src={
-                      perfil?.fotoPerfil
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onVerPerfil?.(
+                        comentario.usuarioId
+                      )
                     }
-                    size={34}
-                    ring={false}
-                  />
+                    disabled={
+                      !puedeAbrirPerfil
+                    }
+                    aria-label={`Ver perfil de ${nombre}`}
+                    className="rounded-full transition hover:scale-105 disabled:cursor-default disabled:hover:scale-100"
+                  >
+                    <Avatar
+                      nombre={nombre}
+                      src={
+                        perfil?.fotoPerfil
+                      }
+                      size={34}
+                      ring={false}
+                    />
+                  </button>
 
                   <div className="min-w-0 flex-1">
                     <div className="rounded-2xl bg-gray-100 px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-primary">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onVerPerfil?.(
+                              comentario.usuarioId
+                            )
+                          }
+                          disabled={
+                            !puedeAbrirPerfil
+                          }
+                          className="truncate text-left text-sm font-semibold text-primary transition hover:text-secondary disabled:cursor-default disabled:hover:text-primary"
+                        >
                           {nombre}
-                        </p>
+                        </button>
 
                         <span className="text-[10px] text-secondary/40">
                           •
