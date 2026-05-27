@@ -25,6 +25,7 @@ export function HomeView() {
 
     comentarios,
     perfilesComentarios,
+    perfilPublicadorActivo,
 
     reelLikeado,
 
@@ -80,6 +81,7 @@ export function HomeView() {
         <div className="flex min-h-0 flex-1 gap-6">
           <ReelViewer
             reel={reelActivo}
+            perfilPublicador={perfilPublicadorActivo}
             liked={reelLikeado}
             loading={loadingReels}
             puedeSubir={reelActivoIndex > 0}

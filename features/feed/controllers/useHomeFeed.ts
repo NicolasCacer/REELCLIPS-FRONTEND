@@ -136,6 +136,8 @@ export type HomeContacto = {
   fotoPerfil: string | null;
 };
 
+type PublisherProfileMap = Record<number, PerfilInfo>;
+
 export function useHomeFeed() {
   const { user, feedSeed } = useAuth();
 
@@ -163,6 +165,9 @@ export function useHomeFeed() {
 
   const [perfilesComentarios, setPerfilesComentarios] =
     useState<CommentProfileMap>({});
+
+  const [perfilesPublicadores, setPerfilesPublicadores] =
+    useState<PublisherProfileMap>({});
 
   const [likedReels, setLikedReels] = useState<Set<number>>(
     new Set()
@@ -381,6 +386,57 @@ export function useHomeFeed() {
     void cargarComentarios(reelActivo.id);
   }, [reelActivo, cargarComentarios]);
 
+  useEffect(() => {
+    const canalIds = Array.from(
+      new Set(
+        reels
+          .map((reel) => reel.canalId)
+          .filter((canalId) => canalId > 0)
+      )
+    );
+
+    const pendientes = canalIds.filter(
+      (canalId) => !perfilesPublicadores[canalId]
+    );
+
+    if (pendientes.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const cargarPerfiles = async () => {
+      const perfilesCargados: PublisherProfileMap = {};
+
+      await Promise.all(
+        pendientes.map(async (canalId) => {
+          try {
+            perfilesCargados[canalId] =
+              await getProfileService({ id: canalId });
+          } catch {
+            // Si un perfil falla, el reel igual debe poder verse.
+          }
+        })
+      );
+
+      if (
+        !cancelled &&
+        Object.keys(perfilesCargados).length > 0
+      ) {
+        setPerfilesPublicadores((prev) => ({
+          ...prev,
+          ...perfilesCargados,
+        }));
+      }
+    };
+
+    void cargarPerfiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reels, perfilesPublicadores]);
+
   /**
    * CATEGORÍA
    */
@@ -597,6 +653,11 @@ export function useHomeFeed() {
     ? likedReels.has(reelActivo.id)
     : false;
 
+  const perfilPublicadorActivo =
+    reelActivo && reelActivo.canalId > 0
+      ? perfilesPublicadores[reelActivo.canalId] ?? null
+      : null;
+
   return {
     usuario,
     contactos,
@@ -610,6 +671,7 @@ export function useHomeFeed() {
 
     comentarios,
     perfilesComentarios,
+    perfilPublicadorActivo,
 
     reelLikeado,
 
